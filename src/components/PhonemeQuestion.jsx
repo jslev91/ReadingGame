@@ -1,0 +1,90 @@
+import { useEffect, useState, useMemo } from 'react'
+import { speak } from '../services/tts'
+import phonics from '../data/phonics'
+
+// Accepts a full phonics entry object rather than a bare grapheme string
+// because "oo" appears twice in Phase 3 with different phonemes — a string
+// would be ambiguous.
+
+function pickDistractors(entry, count = 2) {
+  const candidates = phonics.filter(
+    p => p.phase === entry.phase && p.grapheme !== entry.grapheme
+  )
+  const shuffled = [...candidates].sort(() => Math.random() - 0.5)
+  return shuffled.slice(0, count)
+}
+
+function shuffle(arr) {
+  return [...arr].sort(() => Math.random() - 0.5)
+}
+
+export default function PhonemeQuestion({ entry, onCorrect, onWrong }) {
+  const [answered, setAnswered] = useState(false)
+  const [selected, setSelected] = useState(null)
+
+  const options = useMemo(() => shuffle([entry, ...pickDistractors(entry)]), [entry])
+
+  useEffect(() => {
+    speak(entry.phonemeDescription)
+    setAnswered(false)
+    setSelected(null)
+  }, [entry])
+
+  function handleTap(option) {
+    if (answered) return
+    setAnswered(true)
+    setSelected(option)
+    if (option === entry) {
+      onCorrect?.()
+    } else {
+      onWrong?.()
+    }
+  }
+
+  function buttonClass(option) {
+    const base = 'min-h-16 w-24 rounded-2xl text-4xl font-bold transition-transform focus:outline-none'
+    if (!answered) {
+      return `${base} bg-white border-4 border-yellow-400 text-yellow-900 active:scale-95`
+    }
+    if (option === entry) {
+      return `${base} bg-green-400 border-4 border-green-600 text-white`
+    }
+    if (option === selected) {
+      return `${base} bg-red-400 border-4 border-red-600 text-white`
+    }
+    return `${base} bg-white border-4 border-gray-200 text-gray-300`
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-10 p-6 select-none">
+      <button
+        onClick={() => speak(entry.phonemeDescription)}
+        className="flex flex-col items-center gap-2 cursor-pointer"
+        aria-label={`Hear the sound again: ${entry.phonemeDescription}`}
+      >
+        <span className="text-7xl">🔊</span>
+        <span className="text-lg font-bold text-yellow-700">Tap to hear the sound</span>
+      </button>
+
+      <div className="flex gap-6">
+        {options.map((option, i) => (
+          <button
+            key={i}
+            onClick={() => handleTap(option)}
+            disabled={answered}
+            className={buttonClass(option)}
+            aria-label={option.grapheme}
+          >
+            {option.grapheme}
+          </button>
+        ))}
+      </div>
+
+      {answered && selected !== entry && (
+        <p className="text-base font-bold text-gray-500">
+          The sound was <span className="text-green-600">{entry.phonemeDescription}</span>
+        </p>
+      )}
+    </div>
+  )
+}
