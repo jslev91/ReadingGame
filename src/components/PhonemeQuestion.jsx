@@ -5,24 +5,27 @@ import phonics from '../data/phonics'
 // Accepts a full phonics entry object rather than a bare grapheme string
 // because "oo" appears twice in Phase 3 with different phonemes — a string
 // would be ambiguous.
+//
+// Optional `distractors` prop accepts pre-selected entries from questionSelector.
+// Falls back to random same-phase picks when not provided (e.g. in isolation testing).
 
-function pickDistractors(entry, count = 2) {
-  const candidates = phonics.filter(
-    p => p.phase === entry.phase && p.grapheme !== entry.grapheme
-  )
-  const shuffled = [...candidates].sort(() => Math.random() - 0.5)
-  return shuffled.slice(0, count)
+function pickDistractors(entry) {
+  const candidates = phonics.filter(p => p.phase === entry.phase && p.grapheme !== entry.grapheme)
+  return [...candidates].sort(() => Math.random() - 0.5).slice(0, 2)
 }
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5)
 }
 
-export default function PhonemeQuestion({ entry, onCorrect, onWrong }) {
+export default function PhonemeQuestion({ entry, distractors, onCorrect, onWrong, locked = false }) {
   const [answered, setAnswered] = useState(false)
   const [selected, setSelected] = useState(null)
 
-  const options = useMemo(() => shuffle([entry, ...pickDistractors(entry)]), [entry])
+  const options = useMemo(
+    () => shuffle([entry, ...(distractors ?? pickDistractors(entry))]),
+    [entry]
+  )
 
   useEffect(() => {
     speak(entry.phonemeDescription)
@@ -31,7 +34,7 @@ export default function PhonemeQuestion({ entry, onCorrect, onWrong }) {
   }, [entry])
 
   function handleTap(option) {
-    if (answered) return
+    if (answered || locked) return
     setAnswered(true)
     setSelected(option)
     if (option === entry) {
@@ -71,7 +74,7 @@ export default function PhonemeQuestion({ entry, onCorrect, onWrong }) {
           <button
             key={i}
             onClick={() => handleTap(option)}
-            disabled={answered}
+            disabled={answered || locked}
             className={buttonClass(option)}
             aria-label={option.grapheme}
           >
