@@ -29,7 +29,9 @@ docs/          ← session briefings and reference material
 ## Services
 
 ### `src/services/tts.js`
-Single exported `speak(text, options)` function using the Web Speech API. Prefers a Google `en-GB` voice; falls back to any `en-GB` voice, then default. Rate is 0.75. Includes a 100ms `setTimeout` for iOS reliability. **Never call `speechSynthesis` directly in a component.**
+Single exported `speak(text, options)` function using the Web Speech API. Prefers a Google `en-GB` voice; falls back to any `en-GB` voice, then default. Rate is 0.7. Includes a 100ms `setTimeout` for iOS reliability. **Never call `speechSynthesis` directly in a component.**
+
+Multi-word text is split on spaces and each word is spoken as a separate utterance chained via `onend`, with a `pauseMs` pause (default 350ms) between words. This produces natural, unhurried pacing. Single-word text (e.g. `"sss"`) is spoken as one utterance.
 
 ### `src/services/storage.js`
 Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`. Current user: `{ id: "guest", name: "Player" }`.
@@ -43,7 +45,9 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 5. Distractors come only from graphemes the child has been introduced to; Phase 2 graphemes fill slots if fewer than 2 are available
 
 ## Data — `src/data/phonics.js`
-Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
+Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
+
+`ttsText` is what gets passed to `speak()`. Rules: continuous consonants are repeated (`s` → `"sss"`, `f` → `"fff"`); stop consonants and ambiguous sounds use `"x... as in word"` form (`t` → `"t... as in tap"`); vowel digraphs use the sound name (`ai` → `"ay... as in rain"`, `igh` → `"eye... as in night"`). Always pass `entry.ttsText` to `speak()` — never `entry.grapheme` or `entry.phonemeDescription`.
 
 **Important:** `oo` appears twice in Phase 3 (orders 17 and 18) with different phonemes ("oo as in moon" vs "oo as in book"). Components accept a full entry object rather than a bare grapheme string to avoid ambiguity. Use `===` reference equality to identify the correct answer.
 
@@ -117,4 +121,4 @@ Simple React state in `App.jsx` (`screen`: `"home"` | `"game"`). No router libra
 
 ## Session build history
 - **Session 1:** Scaffold, CLAUDE.md, tts + storage services, phonics data, usePet, PhonemeQuestion, basic App wiring
-- **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check)
+- **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check); added ttsText to all phonics entries + word-by-word TTS pacing
