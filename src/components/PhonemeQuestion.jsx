@@ -28,7 +28,7 @@ export default function PhonemeQuestion({ entry, distractors, onCorrect, onWrong
   )
 
   useEffect(() => {
-    speak(entry.phonemeDescription)
+    speak(entry.ttsText)
     setAnswered(false)
     setSelected(null)
   }, [entry])
@@ -61,7 +61,7 @@ export default function PhonemeQuestion({ entry, distractors, onCorrect, onWrong
   return (
     <div className="flex flex-col items-center gap-10 p-6 select-none">
       <button
-        onClick={() => speak(entry.phonemeDescription)}
+        onClick={() => speak(entry.ttsText)}
         className="flex flex-col items-center gap-2 cursor-pointer"
         aria-label={`Hear the sound again: ${entry.phonemeDescription}`}
       >
