@@ -7,10 +7,6 @@ function getStatus(progressMap, grapheme) {
   return progressMap[grapheme]?.status ?? 'unseen'
 }
 
-function getCorrectCount(progressMap, grapheme) {
-  return progressMap[grapheme]?.correctCount ?? 0
-}
-
 function countByStatus(progressMap, statuses, phase) {
   const set = phonics.filter(p => !phase || p.phase === phase)
   return set.filter(p => statuses.includes(getStatus(progressMap, p.grapheme))).length
@@ -46,29 +42,29 @@ function getNextUnseen(progressMap, allowPhase3) {
   return sequence.find(p => getStatus(progressMap, p.grapheme) === 'unseen') ?? null
 }
 
-function canIntroduceNew(progressMap, sessionIntroduced) {
-  // Rule 1: never introduce more than one new grapheme per session
-  if (sessionIntroduced) return false
+// A new grapheme is introduced only once the most recently introduced one has
+// reached 'practising' (3 correct answers). This paces introductions naturally
+// without an arbitrary per-session cap that blocks all further progress.
+function canIntroduceNew(progressMap) {
+  const introduced = [...phase2, ...phase3].filter(
+    p => getStatus(progressMap, p.grapheme) !== 'unseen'
+  )
+  if (introduced.length === 0) return true
 
-  // Rule 3: the most recently introduced grapheme must have at least 1 correct answer
-  const lastIntroduced = [...phase2, ...phase3]
-    .filter(p => getStatus(progressMap, p.grapheme) !== 'unseen')
-    .sort((a, b) => {
-      const ta = progressMap[a.grapheme]?.lastSeen ?? ''
-      const tb = progressMap[b.grapheme]?.lastSeen ?? ''
-      return tb.localeCompare(ta)
-    })[0]
+  const lastIntroduced = introduced.sort((a, b) => {
+    const ta = progressMap[a.grapheme]?.lastSeen ?? ''
+    const tb = progressMap[b.grapheme]?.lastSeen ?? ''
+    return tb.localeCompare(ta)
+  })[0]
 
-  if (lastIntroduced && getCorrectCount(progressMap, lastIntroduced.grapheme) < 1) return false
-
-  return true
+  const status = getStatus(progressMap, lastIntroduced.grapheme)
+  return status === 'practising' || status === 'mastered'
 }
 
-export function selectNextQuestion(progressMap, sessionIntroduced = false) {
+export function selectNextQuestion(progressMap) {
   const phase2PractisingOrMastered = countByStatus(progressMap, ['practising', 'mastered'], 2)
   const allowPhase3 = phase2PractisingOrMastered >= 6
 
-  // Candidates for review: introduced and practising graphemes
   const reviewCandidates = phonics.filter(p =>
     ['introduced', 'practising'].includes(getStatus(progressMap, p.grapheme))
   )
@@ -80,8 +76,8 @@ export function selectNextQuestion(progressMap, sessionIntroduced = false) {
     return { entry, distractors: pickDistractors(entry, progressMap), isNew: false }
   }
 
-  // Prefer reviewing existing graphemes unless we can introduce a new one
-  if (reviewCandidates.length > 0 && !canIntroduceNew(progressMap, sessionIntroduced)) {
+  // Prefer reviewing existing graphemes unless conditions allow a new introduction
+  if (reviewCandidates.length > 0 && !canIntroduceNew(progressMap)) {
     const entry = pickRandom(reviewCandidates)
     return { entry, distractors: pickDistractors(entry, progressMap), isNew: false }
   }

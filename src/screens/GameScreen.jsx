@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { usePet } from '../hooks/usePet'
 import { useProgress } from '../hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
@@ -10,8 +10,6 @@ const GUEST = { id: 'guest', name: 'Player' }
 export default function GameScreen({ onHome }) {
   const pet = usePet(GUEST.id)
   const progress = useProgress(GUEST.id)
-  const sessionIntroducedRef = useRef(false)
-
   const [question, setQuestion] = useState(null)
   const [locked, setLocked] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
@@ -19,8 +17,7 @@ export default function GameScreen({ onHome }) {
   // Runs with a fresh closure each time questionIndex increments,
   // so progress.progressMap is always up to date when selecting the next question.
   useEffect(() => {
-    const next = selectNextQuestion(progress.progressMap, sessionIntroducedRef.current)
-    if (next.isNew) sessionIntroducedRef.current = true
+    const next = selectNextQuestion(progress.progressMap)
     progress.recordPresented(next.entry.grapheme)
     setQuestion(next)
     setLocked(false)
