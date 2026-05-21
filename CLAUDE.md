@@ -18,66 +18,103 @@ A phonics learning PWA for children aged 5–6, guided by a parent or teacher. T
 ```
 src/
   data/        ← phonics curriculum
-  services/    ← tts.js, storage.js
-  hooks/       ← usePet.js, useProgress.js (stub)
-  components/  ← reusable UI components
-  screens/     ← top-level screen components
-  context/     ← React contexts
+  services/    ← tts.js, storage.js, questionSelector.js
+  hooks/       ← usePet.js, useProgress.js
+  components/  ← Jimmy.jsx, PhonemeQuestion.jsx
+  screens/     ← HomeScreen.jsx, GameScreen.jsx
+  context/     ← React contexts (unused so far)
 docs/          ← session briefings and reference material
 ```
 
 ## Services
 
 ### `src/services/tts.js`
-Single exported `speak(text, options)` function using the Web Speech API with `lang: 'en-GB'`. **Never call `speechSynthesis` directly in a component.** This abstraction allows swapping in recorded audio or a different TTS provider later without touching components.
+Single exported `speak(text, options)` function using the Web Speech API. Prefers a Google `en-GB` voice; falls back to any `en-GB` voice, then default. Rate is 0.75. Includes a 100ms `setTimeout` for iOS reliability. **Never call `speechSynthesis` directly in a component.**
 
 ### `src/services/storage.js`
-Wrapper around localStorage that always namespaces reads and writes by `userId`. All persisted state must be keyed by `userId`. Current user: `{ id: "guest", name: "Player" }`. The storage layer must require no restructuring when real user profiles are added.
+Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`. Current user: `{ id: "guest", name: "Player" }`.
+
+### `src/services/questionSelector.js`
+Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next using these rules (in priority order):
+1. Work through Phase 2 graphemes in Letters and Sounds order; don't start Phase 3 until 6 Phase 2 graphemes are `practising` or `mastered`
+2. A new grapheme is introduced only when the most recently seen non-unseen grapheme has reached `practising` (3 correct answers) — this naturally paces introductions without a hard per-session cap
+3. After introducing a new grapheme, interleave it with review of `introduced` and `practising` graphemes
+4. `mastered` graphemes appear ~1 in 10 questions as maintenance review
+5. Distractors come only from graphemes the child has been introduced to; Phase 2 graphemes fill slots if fewer than 2 are available
 
 ## Data — `src/data/phonics.js`
-Phase 2 and Phase 3 data from the Letters and Sounds sequence. Each grapheme entry:
-- `grapheme` — e.g. `"sh"`
-- `phonemeDescription` — e.g. `"sh as in ship"`
-- `exampleWords` — array of 2–3 simple CVC or short words
-- `phase` — `2` or `3`
-- `order` — sequence number within phase
+Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
+
+**Important:** `oo` appears twice in Phase 3 (orders 17 and 18) with different phonemes ("oo as in moon" vs "oo as in book"). Components accept a full entry object rather than a bare grapheme string to avoid ambiguity. Use `===` reference equality to identify the correct answer.
 
 Per-user grapheme status (`"unseen" | "introduced" | "practising" | "mastered"`) is stored separately via the storage service, not in this file.
 
-## Jimmy the giraffe — `src/hooks/usePet.js`
-- `energy`: number 0–100, starts at 70, persisted via storage service (keyed by `userId`)
-- Correct answer: +10 energy (capped at 100)
-- Wrong answer: −5 energy (floored at 0)
-- Passive decay: −1 every 5 minutes, calculated from a stored timestamp on load
-- `mood`: derived — `"happy"` if energy > 60, `"okay"` if > 30, `"sad"` otherwise
+## Hooks
+
+### `src/hooks/usePet.js`
+- `energy`: 0–100, starts at 70, persisted via storage service
+- Correct answer: +10 (capped at 100); wrong answer: −5 (floored at 0)
+- Passive decay: −1 per 5 minutes, calculated from stored timestamp on load
+- `mood`: `"happy"` if energy > 60, `"okay"` if > 30, `"sad"` otherwise
 - Exposes: `energy`, `mood`, `onCorrect()`, `onWrong()`
 
+### `src/hooks/useProgress.js`
+Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`.
+
+State shape per grapheme:
+```js
+{ status: "unseen"|"introduced"|"practising"|"mastered", correctCount: 0, lastSeen: null }
+```
+
+Transitions: `unseen → introduced` on first presentation; `introduced → practising` at 3 correct; `practising → mastered` at 7 correct. Wrong answers don't regress status.
+
+Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `recordCorrect(grapheme)`, `recordWrong(grapheme)`.
+
+## Components
+
+### `src/components/Jimmy.jsx`
+Displays the 🦒 emoji and an energy bar. Bar colour reflects mood: green (`happy`), amber (`okay`), red (`sad`). Props: `energy`, `mood`.
+
+### `src/components/PhonemeQuestion.jsx`
+Props: `entry` (full phonics entry object), `distractors` (array of 2 entry objects from questionSelector), `onCorrect`, `onWrong`, `locked`.
+
+Speaks the phoneme on mount via TTS. Shows a 🔊 button to replay. Displays three grapheme buttons (correct + 2 distractors, shuffled). One attempt only — wrong answer immediately reveals the correct answer in green. `locked` prop disables all buttons during the auto-advance feedback pause.
+
+## Screens
+
+### `src/screens/HomeScreen.jsx`
+Shows 🦒 emoji, Jimmy's current mood emoji, and a "Play with Jimmy" button. Calls `onPlay` prop on tap.
+
+### `src/screens/GameScreen.jsx`
+Main game loop. Uses `usePet` and `useProgress`. On each question:
+- Calls `selectNextQuestion(progressMap)` inside a `useEffect([questionIndex])` — this ensures a fresh closure over `progressMap` after each state update
+- Correct answer: calls `pet.onCorrect()` and `progress.recordCorrect()`, waits 1000ms, increments `questionIndex`
+- Wrong answer: calls `pet.onWrong()` and `progress.recordWrong()`, waits 1500ms, increments `questionIndex`
+- `questionIndex` is also included in `PhonemeQuestion`'s `key` to guarantee remounting even if the same grapheme appears consecutively
+
+## Navigation
+Simple React state in `App.jsx` (`screen`: `"home"` | `"game"`). No router library.
+
 ## Anti-guessing principle — critical design constraint
-This app must **never** reward guessing:
 - Each question gets exactly **one attempt**
-- A wrong answer immediately reveals the correct answer — no retry
+- Wrong answer immediately reveals the correct answer — no retry
 - Energy is always deducted on a wrong answer
 - **Never** show a "try again" prompt
-- Question design should make random tapping a losing strategy over time
 
 ## UI constraints
-- All interactive elements: minimum **64px** touch target (young children have poor fine motor control)
+- All interactive elements: minimum **64px** touch target
 - Simple, bold fonts — no decorative or serif fonts
 - Navigation must not require reading — use icons or imagery
 - Bright, friendly colour palette
 
 ## Git rules — mandatory every session, without being asked
-- After each meaningful unit of work: `git add -A && git commit -m "<descriptive message>"` and `git push`
+- After each meaningful unit of work: `git add` the relevant files, commit with a descriptive message, and `git push`
 - Commit messages must be concise and specific (e.g. `add Phase 2 phonics data`, not `update files`)
 - Never batch unrelated changes into a single commit
 - If a step fails or produces broken code, commit the broken state with a message starting `WIP:` before attempting a fix
 - At the start of every new session: run `git status` and `git log --oneline -5` before touching anything
+- **Update CLAUDE.md whenever architecture, data shapes, design decisions, or behaviour changes** — do not wait to be asked
 
-## Session build order
-1. ~~Scaffold project (React + Vite + Tailwind + PWA)~~ ✓
-2. ~~Create `CLAUDE.md`~~ ✓ — **pause for review before continuing**
-3. Create `src/services/tts.js` and `src/services/storage.js`
-4. Create `src/data/phonics.js` with Phase 2 and Phase 3 data
-5. Create `src/hooks/usePet.js`
-6. Create `src/components/PhonemeQuestion.jsx`
-7. Wire everything together in `App.jsx` with a hardcoded grapheme for testing
+## Session build history
+- **Session 1:** Scaffold, CLAUDE.md, tts + storage services, phonics data, usePet, PhonemeQuestion, basic App wiring
+- **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check)
