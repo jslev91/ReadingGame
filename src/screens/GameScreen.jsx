@@ -14,25 +14,24 @@ export default function GameScreen({ onHome }) {
 
   const [question, setQuestion] = useState(null)
   const [locked, setLocked] = useState(false)
+  const [questionIndex, setQuestionIndex] = useState(0)
 
-  function loadNext() {
+  // Runs with a fresh closure each time questionIndex increments,
+  // so progress.progressMap is always up to date when selecting the next question.
+  useEffect(() => {
     const next = selectNextQuestion(progress.progressMap, sessionIntroducedRef.current)
     if (next.isNew) sessionIntroducedRef.current = true
     progress.recordPresented(next.entry.grapheme)
     setQuestion(next)
     setLocked(false)
-  }
-
-  useEffect(() => {
-    loadNext()
-  }, [])
+  }, [questionIndex])
 
   function handleCorrect() {
     if (locked) return
     setLocked(true)
     pet.onCorrect()
     progress.recordCorrect(question.entry.grapheme)
-    setTimeout(loadNext, 1000)
+    setTimeout(() => setQuestionIndex(i => i + 1), 1000)
   }
 
   function handleWrong() {
@@ -40,7 +39,7 @@ export default function GameScreen({ onHome }) {
     setLocked(true)
     pet.onWrong()
     progress.recordWrong(question.entry.grapheme)
-    setTimeout(loadNext, 1500)
+    setTimeout(() => setQuestionIndex(i => i + 1), 1500)
   }
 
   return (
@@ -60,7 +59,7 @@ export default function GameScreen({ onHome }) {
       {question && (
         <div className="bg-white rounded-3xl shadow-lg w-full max-w-sm">
           <PhonemeQuestion
-            key={question.entry.grapheme + question.entry.phonemeDescription}
+            key={question.entry.grapheme + question.entry.phonemeDescription + questionIndex}
             entry={question.entry}
             onCorrect={handleCorrect}
             onWrong={handleWrong}
