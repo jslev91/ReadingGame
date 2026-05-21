@@ -29,9 +29,9 @@ docs/          ← session briefings and reference material
 ## Services
 
 ### `src/services/tts.js`
-Single exported `speak(text, options)` function using the Web Speech API. Prefers a Google `en-GB` voice; falls back to any `en-GB` voice, then default. Rate is 0.7. Includes a 100ms `setTimeout` for iOS reliability. **Never call `speechSynthesis` directly in a component.**
+Single exported `speak(text, options)` function using the Web Speech API. Prefers a Google `en-GB` voice; falls back to any `en-GB` voice, then default. Rate is 0.82. Includes a 100ms `setTimeout` for iOS reliability. **Never call `speechSynthesis` directly in a component.**
 
-Multi-word text is split on spaces and each word is spoken as a separate utterance chained via `onend`, with a `pauseMs` pause (default 350ms) between words. This produces natural, unhurried pacing. Single-word text (e.g. `"sss"`) is spoken as one utterance.
+Speaks each call as a single utterance. Word-by-word splitting was removed — it caused isolated single-character tokens (e.g. `"a."`) to be read as letter names by TTS.
 
 ### `src/services/storage.js`
 Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`. Current user: `{ id: "guest", name: "Player" }`.
@@ -47,7 +47,7 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 ## Data — `src/data/phonics.js`
 Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
 
-`ttsText` is what gets passed to `speak()`. Rules: continuous consonants are repeated (`s` → `"sss"`, `f` → `"fff"`); stop consonants and ambiguous sounds use `"x... as in word"` form (`t` → `"t... as in tap"`); vowel digraphs use the sound name (`ai` → `"ay... as in rain"`, `igh` → `"eye... as in night"`). Always pass `entry.ttsText` to `speak()` — never `entry.grapheme` or `entry.phonemeDescription`.
+`ttsText` is what gets passed to `speak()`. Rules: continuous consonants use repeated form (`s` → `"sss"`, `f` → `"fff"`) — TTS renders these as sounds rather than letter names; single vowels and stop consonants use `"as in [word]"` (`a` → `"as in ant"`, `t` → `"as in tap"`) — avoids TTS reading an isolated letter as its name; multi-char digraphs and vowel pairs use the sound name plus example (`sh` → `"shh"`, `ai` → `"ay as in rain"`). Always pass `entry.ttsText` to `speak()` — never `entry.grapheme` or `entry.phonemeDescription`.
 
 **Important:** `oo` appears twice in Phase 3 (orders 17 and 18) with different phonemes ("oo as in moon" vs "oo as in book"). Components accept a full entry object rather than a bare grapheme string to avoid ambiguity. Use `===` reference equality to identify the correct answer.
 
