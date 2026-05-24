@@ -23,7 +23,6 @@ export function usePet(userId) {
     const saved = getItem(userId, 'petEnergy') ?? DEFAULT_ENERGY
     const lastSavedAt = getItem(userId, 'petLastSavedAt')
     const decayed = calcDecay(saved, lastSavedAt)
-    console.log(`[usePet] loaded energy=${saved}, decayed to=${decayed}, mood=${deriveMood(decayed)}`)
     return decayed
   })
 
@@ -31,7 +30,6 @@ export function usePet(userId) {
     const clamped = Math.min(100, Math.max(0, next))
     setItem(userId, 'petEnergy', clamped)
     setItem(userId, 'petLastSavedAt', Date.now())
-    console.log(`[usePet] energy ${energy} → ${clamped}, mood=${deriveMood(clamped)}`)
     setEnergy(clamped)
   }
 

@@ -58,6 +58,7 @@ export default function GameScreen({ onHome }) {
           <PhonemeQuestion
             key={question.entry.grapheme + question.entry.phonemeDescription + questionIndex}
             entry={question.entry}
+            distractors={question.distractors}
             onCorrect={handleCorrect}
             onWrong={handleWrong}
             locked={locked}
