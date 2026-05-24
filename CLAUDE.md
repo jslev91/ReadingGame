@@ -47,7 +47,9 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 ## Data — `src/data/phonics.js`
 Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
 
-`ttsText` is what gets passed to `speak()`. Rules: continuous consonants use repeated form (`s` → `"sss"`, `f` → `"fff"`) — TTS renders these as sounds rather than letter names; single vowels and stop consonants use `"as in [word]"` (`a` → `"as in ant"`, `t` → `"as in tap"`) — avoids TTS reading an isolated letter as its name; multi-char digraphs and vowel pairs use the sound name plus example (`sh` → `"shh"`, `ai` → `"ay as in rain"`). Always pass `entry.ttsText` to `speak()` — never `entry.grapheme` or `entry.phonemeDescription`.
+`ttsText` is what gets passed to `speak()`. Currently set to a real example word for every entry — the most reliable approach with Web Speech API, which cannot produce isolated phoneme sounds (repeated chars like `"sss"` are read as letter names; isolated single chars are read as letter names too). For consonants: first example word (`s` → `"sat"`). For vowels: the `"as in"` keyword from `phonemeDescription` since it starts with the vowel sound (`a` → `"ant"`, `e` → `"egg"`). Always pass `entry.ttsText` to `speak()` — never `entry.grapheme` or `entry.phonemeDescription`.
+
+**Planned improvement:** replace `speak()` with recorded audio files. The `ttsText` field will become an audio filename/key. This is a one-file swap in `tts.js` — no component changes needed.
 
 **Important:** `oo` appears twice in Phase 3 (orders 17 and 18) with different phonemes ("oo as in moon" vs "oo as in book"). Components accept a full entry object rather than a bare grapheme string to avoid ambiguity. Use `===` reference equality to identify the correct answer.
 
