@@ -26,8 +26,22 @@ function speakFallback(text) {
 // double-play from StrictMode and rapid question changes.
 export function speak(audioKey, fallbackText) {
   const audio = new Audio(`/audio/${audioKey}.wav`)
-  audio.onerror = () => speakFallback(fallbackText ?? audioKey)
-  audio.play().catch(() => speakFallback(fallbackText ?? audioKey))
+  let fallbackCalled = false
+
+  function triggerFallback() {
+    if (!fallbackCalled) {
+      fallbackCalled = true
+      speakFallback(fallbackText ?? audioKey)
+    }
+  }
+
+  // onerror fires when the file cannot be loaded (missing file, network error)
+  audio.onerror = triggerFallback
+
+  // AbortError means we intentionally paused via cleanup — do not fall back to TTS
+  audio.play().catch(err => {
+    if (err.name !== 'AbortError') triggerFallback()
+  })
 
   return () => {
     audio.pause()
