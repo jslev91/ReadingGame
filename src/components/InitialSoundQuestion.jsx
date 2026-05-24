@@ -1,12 +1,25 @@
 // Reverse of PhonemeQuestion: the child hears a whole word and taps the grapheme
-// that represents its first sound. Audio uses TTS fallback intentionally — full words
-// via Web Speech API are clear and natural; no recorded .wav files are needed.
+// for the target sound. Audio uses TTS fallback intentionally — full words via Web
+// Speech API are clear and natural; no recorded .wav files are needed.
+// Question wording adapts to where the grapheme appears in the word (beginning/end/middle).
 
 import { useEffect, useState, useMemo } from 'react'
 import { speak } from '../services/tts'
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5)
+}
+
+// Finds the best word and derives question phrasing based on where the grapheme sits.
+function getSegmentInfo(entry) {
+  const candidates = [entry.ttsText, ...entry.exampleWords]
+  for (const word of candidates) {
+    if (word.startsWith(entry.grapheme))
+      return { word, prompt: `what sound is at the beginning of ${word}` }
+    if (word.endsWith(entry.grapheme))
+      return { word, prompt: `what sound is at the end of ${word}` }
+  }
+  return { word: entry.ttsText, prompt: `what sound do you hear in ${entry.ttsText}` }
 }
 
 export default function InitialSoundQuestion({ entry, distractors, onCorrect, onWrong, locked = false }) {
@@ -18,11 +31,13 @@ export default function InitialSoundQuestion({ entry, distractors, onCorrect, on
     [entry]
   )
 
+  const { word, prompt } = getSegmentInfo(entry)
+
   useEffect(() => {
     setAnswered(false)
     setSelected(null)
-    // Use a key that won't match any .wav file — TTS fallback speaks the word naturally
-    return speak(`${entry.audioKey}_word`, `what sound is at the beginning of ${entry.exampleWords[0]}`)
+    // Key won't match any .wav — TTS fallback speaks the question naturally
+    return speak(`${entry.audioKey}_word`, prompt)
   }, [entry])
 
   function handleTap(option) {
@@ -53,12 +68,12 @@ export default function InitialSoundQuestion({ entry, distractors, onCorrect, on
   return (
     <div className="flex flex-col items-center gap-10 p-6 select-none">
       <button
-        onClick={() => speak(`${entry.audioKey}_word`, `what sound is at the beginning of ${entry.exampleWords[0]}`)}
+        onClick={() => speak(`${entry.audioKey}_word`, prompt)}
         className="flex flex-col items-center gap-2 cursor-pointer"
-        aria-label={`Hear the word again: ${`what sound is at the beginning of ${entry.exampleWords[0]}`}`}
+        aria-label={`Hear the word again: ${word}`}
       >
         <span className="text-7xl">🔊</span>
-        <span className="text-lg font-bold text-yellow-700">What sound does it start with?</span>
+        <span className="text-lg font-bold text-yellow-700">{prompt.charAt(0).toUpperCase() + prompt.slice(1)}?</span>
       </button>
 
       <div className="flex gap-6">
