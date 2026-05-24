@@ -120,7 +120,12 @@ Props: `entry` (full phonics entry object), `distractors` (array of 2 entry obje
 Speaks the phoneme on mount via TTS. Shows a 🔊 button to replay. Displays three grapheme buttons (correct + 2 distractors, shuffled). One attempt only — wrong answer immediately reveals the correct answer in green. `locked` prop disables all buttons during the auto-advance feedback pause.
 
 ### `src/components/InitialSoundQuestion.jsx`
-Reverse of PhonemeQuestion: the child hears a whole word and taps the grapheme for its initial sound. Audio always uses TTS fallback — calls `speak(entry.audioKey + '_word', entry.exampleWords[0])` with a key that intentionally matches no `.wav` file, so Web Speech API speaks the full word. Full words via TTS are clear and natural. Same props, layout, and anti-guessing rules as PhonemeQuestion.
+Reverse of PhonemeQuestion: the child hears a whole word and taps the grapheme for the target sound. Audio always uses TTS fallback — `speak(entry.audioKey + '_word', prompt)` with a key that intentionally matches no `.wav` file. Same props, layout, and anti-guessing rules as PhonemeQuestion.
+
+Question wording is position-aware via `getSegmentInfo(entry)`, which searches `ttsText` then `exampleWords` in order:
+- Grapheme at start of word (s, a, ch …) → "What sound is at the beginning of sat?"
+- Grapheme at end of word (ck, ng, x …) → "What sound is at the end of duck?"
+- Grapheme in the middle (ai, oa, oo …) → "What sound do you hear in rain?"
 
 ## Screens
 
