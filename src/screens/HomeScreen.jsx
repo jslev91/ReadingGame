@@ -1,16 +1,15 @@
 import { usePet } from '../hooks/usePet'
+import Jimmy from '../components/Jimmy'
 
 const GUEST = { id: 'guest', name: 'Player' }
-const MOOD_EMOJI = { happy: '😊', okay: '😐', sad: '😢' }
 
 export default function HomeScreen({ onPlay }) {
-  const { mood } = usePet(GUEST.id)
+  const { stats, mood } = usePet(GUEST.id)
 
   return (
     <div className="min-h-screen bg-yellow-50 flex flex-col items-center justify-center gap-8 p-6">
-      <div className="flex flex-col items-center gap-2">
-        <span className="text-9xl">🦒</span>
-        <span className="text-3xl">{MOOD_EMOJI[mood]}</span>
+      <div className="w-full max-w-sm">
+        <Jimmy stats={stats} mood={mood} />
       </div>
 
       <button

@@ -4,6 +4,7 @@ import { useProgress } from '../hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
 import Jimmy from '../components/Jimmy'
 import PhonemeQuestion from '../components/PhonemeQuestion'
+import InitialSoundQuestion from '../components/InitialSoundQuestion'
 
 const GUEST = { id: 'guest', name: 'Player' }
 
@@ -42,8 +43,12 @@ export default function GameScreen({ onHome }) {
     setTimeout(() => setQuestionIndex(i => i + 1), 1500)
   }
 
+  // Every 3rd question (index 2, 5, 8 …) is an InitialSoundQuestion
+  const useInitialSound = questionIndex % 3 === 2
+  const QuestionComponent = useInitialSound ? InitialSoundQuestion : PhonemeQuestion
+
   return (
-    <div className="min-h-screen bg-yellow-50 flex flex-col items-center gap-8 p-6">
+    <div className="min-h-screen bg-yellow-50 flex flex-col items-center gap-6 p-4">
       <div className="w-full flex items-center justify-between">
         <button
           onClick={onHome}
@@ -52,13 +57,15 @@ export default function GameScreen({ onHome }) {
         >
           🏠
         </button>
-        <Jimmy energy={pet.energy} mood={pet.mood} />
-        <div className="min-w-16" />
+      </div>
+
+      <div className="w-full max-w-sm">
+        <Jimmy stats={pet.stats} mood={pet.mood} />
       </div>
 
       {question && (
         <div className="bg-white rounded-3xl shadow-lg w-full max-w-sm">
-          <PhonemeQuestion
+          <QuestionComponent
             key={question.entry.grapheme + question.entry.phonemeDescription + questionIndex}
             entry={question.entry}
             distractors={question.distractors}
