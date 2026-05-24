@@ -14,8 +14,11 @@ export default function GameScreen({ onHome }) {
   const [locked, setLocked] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
 
-  // Runs with a fresh closure each time questionIndex increments,
-  // so progress.progressMap is always up to date when selecting the next question.
+  // questionIndex is the only dep. progress.progressMap is NOT stale because:
+  // useProgress re-evaluates on every render, and recordCorrect/recordWrong update
+  // progressMap 1000ms before setQuestionIndex fires. By the time this effect runs,
+  // the render that triggered it already carries the updated progressMap.
+  // Adding progressMap to deps would cause an infinite loop (recordPresented updates it).
   useEffect(() => {
     const next = selectNextQuestion(progress.progressMap)
     progress.recordPresented(next.entry.grapheme)

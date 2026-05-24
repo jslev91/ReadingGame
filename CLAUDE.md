@@ -95,7 +95,7 @@ Shows 🦒 emoji, Jimmy's current mood emoji, and a "Play with Jimmy" button. Ca
 
 ### `src/screens/GameScreen.jsx`
 Main game loop. Uses `usePet` and `useProgress`. On each question:
-- Calls `selectNextQuestion(progressMap)` inside a `useEffect([questionIndex])` — this ensures a fresh closure over `progressMap` after each state update
+- Calls `selectNextQuestion(progressMap)` inside a `useEffect([questionIndex])`. `progressMap` is intentionally absent from the dep array: `useProgress` re-evaluates on every render, so the render triggered by `setQuestionIndex` already carries the updated map (recordCorrect/recordWrong fire 1000–1500ms before the timer). Adding `progressMap` to deps would cause an infinite loop because `recordPresented` (called inside the effect) updates it.
 - Correct answer: calls `pet.onCorrect()` and `progress.recordCorrect()`, waits 1000ms, increments `questionIndex`
 - Wrong answer: calls `pet.onWrong()` and `progress.recordWrong()`, waits 1500ms, increments `questionIndex`
 - `questionIndex` is also included in `PhonemeQuestion`'s `key` to guarantee remounting even if the same grapheme appears consecutively
