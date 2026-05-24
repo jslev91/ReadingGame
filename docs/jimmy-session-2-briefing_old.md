@@ -10,26 +10,14 @@ We are continuing work on Jimmy, a phonics learning PWA for 5–6 year olds. Rea
 
 By the end of this session the app should feel like a real (if basic) game: Jimmy the giraffe is visible on screen, a proper question loop runs, and the app tracks which graphemes the child has been introduced to and is practising.
 
-## Step 1 — Fix TTS (do this first)
+## Step 1 — Fix TTS (do this first, it's a small change)
 
-### 1a — Update `src/services/tts.js`
-- Set `utterance.rate = 0.7` (down from the default 1.0 — this is for young children, clarity matters more than speed)
+In `src/services/tts.js`, make these changes to the `speak()` function:
+- Set `utterance.rate = 0.75` (down from the default 1.0)
 - Before assigning the voice, query available voices with `speechSynthesis.getVoices()` and prefer any voice whose name contains `"Google"` and `lang` is `"en-GB"`. Fall back to the first available `en-GB` voice. Fall back to default if none found.
-- Add a `setTimeout` of 100ms before calling `speak()` — iOS requires a brief pause after user interaction before synthesis will trigger reliably.
-- Update `speak()` to accept an optional `pauseMs` parameter (default: 350). When the text contains multiple words, split on spaces and speak each word as a separate utterance chained via the `onend` event, with a `pauseMs` pause between each. This produces natural, unhurried pacing rather than rushed continuous speech.
+- Add a small `setTimeout` of 100ms before calling `speak()` — iOS requires a brief pause after user interaction before synthesis will trigger reliably.
 
-### 1b — Add `ttsText` to phonics data
-The Web Speech API reads single letters as their letter names ("es", "aitch", "double-u") rather than their phoneme sounds. To fix this, add a `ttsText` field to every grapheme entry in `src/data/phonics.js`.
-
-Rules for `ttsText` values:
-- For continuous consonants, repeat or prolong them: `s` → `"sss"`, `f` → `"fff"`, `m` → `"mmm"`, `l` → `"lll"`, `n` → `"nnn"`, `r` → `"rrr"`, `v` → `"vvv"`, `z` → `"zzz"`
-- For stop consonants that can't be prolonged, use the example word only: `p` → `"p... as in pat"`, `b` → `"b... as in big"`, `t` → `"t... as in tap"`, `d` → `"d... as in dog"`, `k` → `"k... as in king"`, `g` → `"g... as in got"`, `c` → `"c... as in cat"`, `ck` → `"ck... as in duck"`
-- For digraphs and vowel sounds: `sh` → `"shh"`, `ch` → `"ch... as in chip"`, `th` → `"th... as in this"`, `ng` → `"ng... as in ring"`, `qu` → `"qu... as in queen"`, short vowels use the example word: `a` → `"a... as in ant"`, `e` → `"e... as in egg"`, `i` → `"i... as in it"`, `o` → `"o... as in on"`, `u` → `"u... as in up"`
-- For vowel digraphs (Phase 3): use the sound name and example: `ai` → `"ay... as in rain"`, `ee` → `"ee... as in feet"`, `igh` → `"eye... as in night"`, `oa` → `"oh... as in boat"`, and so on
-
-Wherever the app currently passes `grapheme` to `speak()`, update it to pass `grapheme.ttsText` instead.
-
-Test: tap a question and confirm the app says the phoneme sound, not the letter name. Commit and push.
+Test it: the phoneme sound should now be slower and clearer. Commit and push.
 
 ## Step 2 — Jimmy component
 
