@@ -7,22 +7,23 @@ function getBestVoice() {
   )
 }
 
-export function speak(text, options = {}) {
+function speakFallback(text) {
   if (!window.speechSynthesis) return
-
-  // iOS requires a brief pause after user interaction before synthesis triggers reliably
   setTimeout(() => {
     window.speechSynthesis.cancel()
-
     const utterance = new SpeechSynthesisUtterance(text)
     utterance.lang = 'en-GB'
-    utterance.rate = options.rate ?? 0.82
-    utterance.pitch = options.pitch ?? 1
-    utterance.volume = options.volume ?? 1
-
+    utterance.rate = 0.82
     const voice = getBestVoice()
     if (voice) utterance.voice = voice
-
     window.speechSynthesis.speak(utterance)
   }, 100)
+}
+
+// audioKey: filename stem under /audio/ (e.g. "s", "oo_long")
+// fallbackText: spoken via Web Speech API when the audio file is missing
+export function speak(audioKey, fallbackText) {
+  const audio = new Audio(`/audio/${audioKey}.wav`)
+  audio.onerror = () => speakFallback(fallbackText ?? audioKey)
+  audio.play().catch(() => speakFallback(fallbackText ?? audioKey))
 }
