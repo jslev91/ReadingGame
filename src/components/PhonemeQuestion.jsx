@@ -28,9 +28,9 @@ export default function PhonemeQuestion({ entry, distractors, onCorrect, onWrong
   )
 
   useEffect(() => {
-    speak(entry.audioKey, entry.ttsText)
     setAnswered(false)
     setSelected(null)
+    return speak(entry.audioKey, entry.ttsText)
   }, [entry])
 
   function handleTap(option) {

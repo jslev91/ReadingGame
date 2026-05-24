@@ -22,8 +22,16 @@ function speakFallback(text) {
 
 // audioKey: filename stem under /audio/ (e.g. "s", "oo_long")
 // fallbackText: spoken via Web Speech API when the audio file is missing
+// Returns a cancel function — always use as useEffect cleanup to prevent
+// double-play from StrictMode and rapid question changes.
 export function speak(audioKey, fallbackText) {
   const audio = new Audio(`/audio/${audioKey}.wav`)
   audio.onerror = () => speakFallback(fallbackText ?? audioKey)
   audio.play().catch(() => speakFallback(fallbackText ?? audioKey))
+
+  return () => {
+    audio.pause()
+    audio.currentTime = 0
+    window.speechSynthesis?.cancel()
+  }
 }
