@@ -60,11 +60,30 @@ Per-user grapheme status (`"unseen" | "introduced" | "practising" | "mastered"`)
 ## Hooks
 
 ### `src/hooks/usePet.js`
-- `energy`: 0–100, starts at 70, persisted via storage service
-- Correct answer: +10 (capped at 100); wrong answer: −5 (floored at 0)
-- Passive decay: −1 per 5 minutes, calculated from stored timestamp on load
-- `mood`: `"happy"` if energy > 60, `"okay"` if > 30, `"sad"` otherwise
-- Exposes: `energy`, `mood`, `onCorrect()`, `onWrong()`
+Persisted under `jimmy:{userId}:petState`. State shape:
+```js
+{
+  energy:  { value: 70, max: 100 },
+  hunger:  { value: 80, max: 100 },
+  social:  { value: 90, max: 100 },
+  coins: 0,
+  lastDecayTimestamp: <ISO string>
+}
+```
+Decay (calculated from `lastDecayTimestamp` on load):
+- Energy: −1 per 5 minutes
+- Hunger: −1 per 8 minutes
+- Social: −1 per 20 minutes
+
+Reward/penalty:
+- Correct: +1 coin, +5 energy
+- Wrong: −3 energy
+- Coins never decrease from gameplay (shop not built yet)
+- Hunger and social decay passively only — not yet affected by gameplay
+
+`mood` derived from average of energy/hunger/social: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise.
+
+Exposes: `stats`, `mood`, `onCorrect()`, `onWrong()`
 
 ### `src/hooks/useProgress.js`
 Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`.
@@ -81,24 +100,40 @@ Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `r
 ## Components
 
 ### `src/components/Jimmy.jsx`
-Displays the 🦒 emoji and an energy bar. Bar colour reflects mood: green (`happy`), amber (`okay`), red (`sad`). Props: `energy`, `mood`.
+The Jimmy habitat. A fixed-height (`h-48`) rectangular zone with sky-blue background and a green grass strip at the bottom. Jimmy's sprite sits on the grass line, centred, rendered at `h-24`.
+
+Pose system: accepts a `pose` prop (default `"idle"`). Currently maps only `"idle"` → `jimmy-idle.png`. Future pose filenames to add under `public/images/`:
+- `walking-1` → `jimmy-walk-1.png`
+- `walking-2` → `jimmy-walk-2.png`
+- `sleep` → `jimmy-sleep.png`
+- `eating` → `jimmy-eating.png`
+- `happy` → `jimmy-happy.png`
+- `sad` → `jimmy-sad.png`
+
+Coin counter (🪙) in top-right corner of habitat. Three slim stat bars below the habitat: ⚡ Energy (green), 🍃 Hunger (orange), 💬 Social (purple).
+
+Props: `stats` (full usePet stats object), `mood` (string), `pose` (default `"idle"`).
 
 ### `src/components/PhonemeQuestion.jsx`
 Props: `entry` (full phonics entry object), `distractors` (array of 2 entry objects from questionSelector), `onCorrect`, `onWrong`, `locked`.
 
 Speaks the phoneme on mount via TTS. Shows a 🔊 button to replay. Displays three grapheme buttons (correct + 2 distractors, shuffled). One attempt only — wrong answer immediately reveals the correct answer in green. `locked` prop disables all buttons during the auto-advance feedback pause.
 
+### `src/components/InitialSoundQuestion.jsx`
+Reverse of PhonemeQuestion: the child hears a whole word and taps the grapheme for its initial sound. Audio always uses TTS fallback — calls `speak(entry.audioKey + '_word', entry.exampleWords[0])` with a key that intentionally matches no `.wav` file, so Web Speech API speaks the full word. Full words via TTS are clear and natural. Same props, layout, and anti-guessing rules as PhonemeQuestion.
+
 ## Screens
 
 ### `src/screens/HomeScreen.jsx`
-Shows 🦒 emoji, Jimmy's current mood emoji, and a "Play with Jimmy" button. Calls `onPlay` prop on tap.
+Shows the Jimmy habitat (sprite, stat bars, coin counter) and a "Play with Jimmy" button. Calls `onPlay` prop on tap.
 
 ### `src/screens/GameScreen.jsx`
 Main game loop. Uses `usePet` and `useProgress`. On each question:
 - Calls `selectNextQuestion(progressMap)` inside a `useEffect([questionIndex])`. `progressMap` is intentionally absent from the dep array: `useProgress` re-evaluates on every render, so the render triggered by `setQuestionIndex` already carries the updated map (recordCorrect/recordWrong fire 1000–1500ms before the timer). Adding `progressMap` to deps would cause an infinite loop because `recordPresented` (called inside the effect) updates it.
 - Correct answer: calls `pet.onCorrect()` and `progress.recordCorrect()`, waits 1000ms, increments `questionIndex`
 - Wrong answer: calls `pet.onWrong()` and `progress.recordWrong()`, waits 1500ms, increments `questionIndex`
-- `questionIndex` is also included in `PhonemeQuestion`'s `key` to guarantee remounting even if the same grapheme appears consecutively
+- `questionIndex` is also included in the question component's `key` to guarantee remounting even if the same grapheme appears consecutively
+- **Question type mixing:** `questionIndex % 3 === 2` → `InitialSoundQuestion`; otherwise `PhonemeQuestion`. Same `selectNextQuestion` result feeds both types.
 
 ## Navigation
 Simple React state in `App.jsx` (`screen`: `"home"` | `"game"`). No router library.
@@ -126,3 +161,4 @@ Simple React state in `App.jsx` (`screen`: `"home"` | `"game"`). No router libra
 ## Session build history
 - **Session 1:** Scaffold, CLAUDE.md, tts + storage services, phonics data, usePet, PhonemeQuestion, basic App wiring
 - **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check); added ttsText to all phonics entries + word-by-word TTS pacing; recorded .wav files for all 50 graphemes; fixed StrictMode double-audio (AbortError guard + fallbackCalled flag)
+- **Session 3:** Refactored usePet to multi-stat model (energy, hunger, social, coins); replaced Jimmy emoji with habitat component (sprite, sky/grass, stat bars, coin counter); added InitialSoundQuestion; question type mixing (every 3rd question); updated HomeScreen to show habitat
