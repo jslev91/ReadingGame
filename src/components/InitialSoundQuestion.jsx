@@ -22,7 +22,7 @@ export default function InitialSoundQuestion({ entry, distractors, onCorrect, on
     setAnswered(false)
     setSelected(null)
     // Use a key that won't match any .wav file — TTS fallback speaks the word naturally
-    return speak(`${entry.audioKey}_word`, entry.exampleWords[0])
+    return speak(`${entry.audioKey}_word`, `what sound is at the beginning of ${entry.exampleWords[0]}`)
   }, [entry])
 
   function handleTap(option) {
@@ -53,9 +53,9 @@ export default function InitialSoundQuestion({ entry, distractors, onCorrect, on
   return (
     <div className="flex flex-col items-center gap-10 p-6 select-none">
       <button
-        onClick={() => speak(`${entry.audioKey}_word`, entry.exampleWords[0])}
+        onClick={() => speak(`${entry.audioKey}_word`, `what sound is at the beginning of ${entry.exampleWords[0]}`)}
         className="flex flex-col items-center gap-2 cursor-pointer"
-        aria-label={`Hear the word again: ${entry.exampleWords[0]}`}
+        aria-label={`Hear the word again: ${`what sound is at the beginning of ${entry.exampleWords[0]}`}`}
       >
         <span className="text-7xl">🔊</span>
         <span className="text-lg font-bold text-yellow-700">What sound does it start with?</span>

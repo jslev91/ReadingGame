@@ -47,7 +47,7 @@ export default function Jimmy({ stats, mood, pose = 'idle' }) {
         <img
           src={src}
           alt={`Jimmy the giraffe (${mood})`}
-          className="absolute h-24 w-auto bottom-8 left-1/2 -translate-x-1/2"
+          className="absolute h-24 w-auto bottom-8 left-1/2 -translate-x-1/2 mix-blend-multiply"
         />
       </div>
 
