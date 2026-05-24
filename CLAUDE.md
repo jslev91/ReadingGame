@@ -29,9 +29,9 @@ docs/          ← session briefings and reference material
 ## Services
 
 ### `src/services/tts.js`
-Single exported `speak(text, options)` function using the Web Speech API. Prefers a Google `en-GB` voice; falls back to any `en-GB` voice, then default. Rate is 0.82. Includes a 100ms `setTimeout` for iOS reliability. **Never call `speechSynthesis` directly in a component.**
+Exported `speak(audioKey, fallbackText)` function. Plays `/audio/${audioKey}.wav` first; falls back to Web Speech API speaking `fallbackText` if the file is missing or fails. Web Speech API: prefers Google `en-GB` voice, rate 0.82, 100ms iOS delay. **Never call `speechSynthesis` or `new Audio()` directly in a component.**
 
-Speaks each call as a single utterance. Word-by-word splitting was removed — it caused isolated single-character tokens (e.g. `"a."`) to be read as letter names by TTS.
+Recorded `.wav` files live in `public/audio/`. 42 of 50 graphemes have recordings. Missing: `a`, `t`, `p`, `g`, `ck`, `ss`, `ch`, `sh` — these fall back to TTS speaking the example word.
 
 ### `src/services/storage.js`
 Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`. Current user: `{ id: "guest", name: "Player" }`.
@@ -47,9 +47,11 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 ## Data — `src/data/phonics.js`
 Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
 
-`ttsText` is what gets passed to `speak()`. Currently set to a real example word for every entry — the most reliable approach with Web Speech API, which cannot produce isolated phoneme sounds (repeated chars like `"sss"` are read as letter names; isolated single chars are read as letter names too). For consonants: first example word (`s` → `"sat"`). For vowels: the `"as in"` keyword from `phonemeDescription` since it starts with the vowel sound (`a` → `"ant"`, `e` → `"egg"`). Always pass `entry.ttsText` to `speak()` — never `entry.grapheme` or `entry.phonemeDescription`.
+Each entry has two audio-related fields:
+- `audioKey`: filename stem for `/public/audio/*.wav` (matches grapheme for most; `oo_long` and `oo_short` for the two `oo` entries)
+- `ttsText`: fallback text for Web Speech API when the audio file is missing (example word that starts with or clearly features the phoneme)
 
-**Planned improvement:** replace `speak()` with recorded audio files. The `ttsText` field will become an audio filename/key. This is a one-file swap in `tts.js` — no component changes needed.
+Always call `speak(entry.audioKey, entry.ttsText)` — never speak the grapheme directly.
 
 **Important:** `oo` appears twice in Phase 3 (orders 17 and 18) with different phonemes ("oo as in moon" vs "oo as in book"). Components accept a full entry object rather than a bare grapheme string to avoid ambiguity. Use `===` reference equality to identify the correct answer.
 
