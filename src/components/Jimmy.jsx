@@ -1,5 +1,6 @@
 import { forwardRef, useImperativeHandle } from 'react'
 import { useJimmyAnimation } from '../hooks/useJimmyAnimation'
+import { getItem } from '../data/items'
 
 const SPRITES = {
   'idle':   '/images/jimmy-idle.png',
@@ -30,6 +31,39 @@ function StatBar({ emoji, value, max, colour }) {
   )
 }
 
+function HabitatItem({ instance }) {
+  const def = getItem(instance.itemId)
+  if (!def) return null
+
+  const now = Date.now()
+  const placed = new Date(instance.placedAt).getTime()
+  const expires = new Date(instance.expiresAt).getTime()
+  const progress = (now - placed) / (expires - placed)
+  const fading = progress > 0.7
+
+  return (
+    <div
+      className={`absolute bottom-8 text-3xl select-none ${fading ? 'opacity-50' : ''}`}
+      style={{
+        left: `${instance.x}%`,
+        transform: 'translateX(-50%)',
+        zIndex: 1,
+      }}
+      aria-hidden="true"
+    >
+      {def.sprite ? (
+        <img
+          src={def.sprite}
+          alt=""
+          className="h-8 w-auto"
+          onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block' }}
+        />
+      ) : null}
+      <span style={{ display: def.sprite ? 'none' : 'block' }}>{def.emoji}</span>
+    </div>
+  )
+}
+
 // Exposes react(pose) via ref so GameScreen can trigger reactions without managing
 // animation state itself. Using forwardRef + useImperativeHandle keeps the animation
 // hook internal and the component interface minimal.
@@ -44,7 +78,7 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
     react: anim.react,
   }))
 
-  const flipStyle = anim.direction === 'right' ? { transform: 'scaleX(-1)' } : {}
+  const activeItems = stats.activeItems ?? []
 
   return (
     <div className="w-full">
@@ -53,12 +87,17 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
         <div className="absolute inset-0 bg-sky-300" />
         <div className="absolute bottom-0 left-0 right-0 h-12 bg-green-500" />
 
+        {/* Placed items — behind Jimmy */}
+        {activeItems.map(inst => (
+          <HabitatItem key={inst.instanceId} instance={inst} />
+        ))}
+
         {/* Coin counter */}
         <div className="absolute top-2 right-3 text-sm font-bold text-yellow-800 bg-yellow-100/80 rounded-full px-2 py-0.5">
           🪙 {stats.coins}
         </div>
 
-        {/* Jimmy sprite — animated position */}
+        {/* Jimmy sprite — animated position, z-index above items */}
         <img
           src={src}
           alt={`Jimmy the giraffe (${mood})`}
@@ -68,6 +107,7 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
             left: `${anim.x}%`,
             transform: `translateX(-50%) ${anim.direction === 'right' ? 'scaleX(-1)' : ''}`,
             transition: 'left 0.4s linear',
+            zIndex: 2,
           }}
         />
       </div>
