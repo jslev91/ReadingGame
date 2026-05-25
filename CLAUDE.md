@@ -17,11 +17,11 @@ A phonics learning PWA for children aged 5–6, guided by a parent or teacher. T
 ## Folder structure
 ```
 src/
-  data/        ← phonics curriculum
+  data/        ← phonics curriculum (phonics.js, words.js)
   services/    ← tts.js, storage.js, questionSelector.js
-  hooks/       ← usePet.js, useProgress.js
-  components/  ← Jimmy.jsx, PhonemeQuestion.jsx
-  screens/     ← HomeScreen.jsx, GameScreen.jsx
+  hooks/       ← usePet.js, useProgress.js, useJimmyAnimation.js
+  components/  ← Jimmy.jsx, PhonemeQuestion.jsx, InitialSoundQuestion.jsx, BlendingQuestion.jsx
+  screens/     ← HomeScreen.jsx, GameScreen.jsx, SessionSummaryScreen.jsx
   context/     ← React contexts (unused so far)
 docs/          ← session briefings and reference material
 ```
@@ -44,7 +44,9 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 4. `mastered` graphemes appear ~1 in 10 questions as maintenance review
 5. Distractors come only from graphemes the child has been introduced to; Phase 2 graphemes fill slots if fewer than 2 are available
 
-## Data — `src/data/phonics.js`
+## Data
+
+### `src/data/phonics.js`
 Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
 
 Each entry has two audio-related fields:
@@ -56,6 +58,15 @@ Always call `speak(entry.audioKey, entry.ttsText)` — never speak the grapheme 
 **Important:** `oo` appears twice in Phase 3 (orders 17 and 18) with different phonemes ("oo as in moon" vs "oo as in book"). Components accept a full entry object rather than a bare grapheme string to avoid ambiguity. Use `===` reference equality to identify the correct answer.
 
 Per-user grapheme status (`"unseen" | "introduced" | "practising" | "mastered"`) is stored separately via the storage service, not in this file.
+
+### `src/data/words.js`
+50 decodable Phase 2 CVC words used by `BlendingQuestion`. Each entry:
+```js
+{ word: "sat", graphemes: ["s", "a", "t"], phase: 2, minIntroduced: 3 }
+```
+`minIntroduced` gates words behind progression — a word only appears when the child has introduced at least that many Phase 2 graphemes AND all its component graphemes.
+
+Exports `selectBlendingWord(progressMap)` which returns `{ wordEntry, distractors }` or `null` if fewer than 3 eligible words exist.
 
 ## Hooks
 
@@ -97,51 +108,81 @@ Transitions: `unseen → introduced` on first presentation; `introduced → prac
 
 Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `recordCorrect(grapheme)`, `recordWrong(grapheme)`.
 
+### `src/hooks/useJimmyAnimation.js`
+Drives Jimmy's movement and pose independently of game logic. Internal state:
+```js
+{ pose, direction: 'left'|'right', x: 5–90, mode: 'wandering'|'resting'|'reacting' }
+```
+- Ticks every 400ms: alternates `walk-1`/`walk-2`, moves x ±2, bounces at 5 and 90
+- 1-in-25 chance per tick of switching to `resting` (pose: `idle`, no movement, 1.5–3s pause)
+- `react(pose)`: sets mode to `reacting`, holds pose for 1200ms, then resumes `wandering`
+- Exposes: `{ pose, direction, x, react }`
+
 ## Components
 
 ### `src/components/Jimmy.jsx`
-The Jimmy habitat. A fixed-height (`h-48`) rectangular zone with sky-blue background and a green grass strip at the bottom. Jimmy's sprite sits on the grass line, centred, rendered at `h-24`.
+The Jimmy habitat. Uses `useJimmyAnimation` internally. Exposed via `forwardRef` + `useImperativeHandle` so callers can call `ref.current.react(pose)` to trigger reactions without managing animation state.
 
-Pose system: accepts a `pose` prop (default `"idle"`). Currently maps only `"idle"` → `jimmy-idle.png`. Future pose filenames to add under `public/images/`:
-- `walking-1` → `jimmy-walk-1.png`
-- `walking-2` → `jimmy-walk-2.png`
-- `sleep` → `jimmy-sleep.png`
-- `eating` → `jimmy-eating.png`
-- `happy` → `jimmy-happy.png`
-- `sad` → `jimmy-sad.png`
+A fixed-height (`h-48`) rectangular zone with sky-blue background and green grass strip. Jimmy's sprite is absolutely positioned at `left: ${x}%` with `transition: left 0.4s linear`. Direction flipping uses `transform: scaleX(-1)` — no separate right-facing sprites needed.
 
-Coin counter (🪙) in top-right corner of habitat. Three slim stat bars below the habitat: ⚡ Energy (green), 🍃 Hunger (orange), 💬 Social (purple).
+Sprite mapping (all fall back to `jimmy-idle.png` via `onError`):
+```
+idle     → jimmy-idle.png      (required — must exist)
+walk-1   → jimmy-walk-1.png
+walk-2   → jimmy-walk-2.png
+happy    → jimmy-happy.png
+sad      → jimmy-sad.png
+sleep    → jimmy-sleep.png
+```
+Drop new sprites into `public/images/` and they appear automatically with no code changes.
 
-Props: `stats` (full usePet stats object), `mood` (string), `pose` (default `"idle"`).
+Optional `pose` prop overrides animation (used by SessionSummaryScreen for a static pose).
+
+Coin counter (🪙) in top-right corner. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 💬 Social (purple).
+
+Props: `stats`, `mood`, `pose` (optional override).
 
 ### `src/components/PhonemeQuestion.jsx`
-Props: `entry` (full phonics entry object), `distractors` (array of 2 entry objects from questionSelector), `onCorrect`, `onWrong`, `locked`.
-
-Speaks the phoneme on mount via TTS. Shows a 🔊 button to replay. Displays three grapheme buttons (correct + 2 distractors, shuffled). One attempt only — wrong answer immediately reveals the correct answer in green. `locked` prop disables all buttons during the auto-advance feedback pause.
+Props: `entry`, `distractors`, `onCorrect`, `onWrong`, `locked`.
+Speaks the phoneme on mount. Shows 🔊 replay. Three `flex-1` grapheme buttons (shuffled). One attempt only.
 
 ### `src/components/InitialSoundQuestion.jsx`
-Reverse of PhonemeQuestion: the child hears a whole word and taps the grapheme for the target sound. Audio always uses TTS fallback — `speak(entry.audioKey + '_word', prompt)` with a key that intentionally matches no `.wav` file. Same props, layout, and anti-guessing rules as PhonemeQuestion.
+Props: same as PhonemeQuestion. Child hears a whole word and taps its target grapheme. TTS fallback intentional. Question wording is position-aware via `getSegmentInfo(entry)`:
+- Grapheme at start → "What sound is at the beginning of sat?"
+- Grapheme at end → "What sound is at the end of duck?"
+- Grapheme in middle → "What sound do you hear in rain?"
 
-Question wording is position-aware via `getSegmentInfo(entry)`, which searches `ttsText` then `exampleWords` in order:
-- Grapheme at start of word (s, a, ch …) → "What sound is at the beginning of sat?"
-- Grapheme at end of word (ck, ng, x …) → "What sound is at the end of duck?"
-- Grapheme in the middle (ai, oa, oo …) → "What sound do you hear in rain?"
+### `src/components/BlendingQuestion.jsx`
+Props: `wordEntry`, `distractors` (2 word objects), `onCorrect`, `onWrong`, `locked`.
+Speaks each grapheme's phoneme in sequence (500ms gaps) then speaks the whole word (700ms after last phoneme). Child taps the correct written word from three options. Distractors share at least one grapheme with the target. Same anti-guessing rules.
 
 ## Screens
 
 ### `src/screens/HomeScreen.jsx`
-Shows the Jimmy habitat (sprite, stat bars, coin counter) and a "Play with Jimmy" button. Calls `onPlay` prop on tap.
+Shows Jimmy habitat and "Play with Jimmy" button.
 
 ### `src/screens/GameScreen.jsx`
-Main game loop. Uses `usePet` and `useProgress`. On each question:
-- Calls `selectNextQuestion(progressMap)` inside a `useEffect([questionIndex])`. `progressMap` is intentionally absent from the dep array: `useProgress` re-evaluates on every render, so the render triggered by `setQuestionIndex` already carries the updated map (recordCorrect/recordWrong fire 1000–1500ms before the timer). Adding `progressMap` to deps would cause an infinite loop because `recordPresented` (called inside the effect) updates it.
-- Correct answer: calls `pet.onCorrect()` and `progress.recordCorrect()`, waits 1000ms, increments `questionIndex`
-- Wrong answer: calls `pet.onWrong()` and `progress.recordWrong()`, waits 1500ms, increments `questionIndex`
-- `questionIndex` is also included in the question component's `key` to guarantee remounting even if the same grapheme appears consecutively
-- **Question type mixing:** `questionIndex % 3 === 2` → `InitialSoundQuestion`; otherwise `PhonemeQuestion`. Same `selectNextQuestion` result feeds both types.
+Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned })` after the 10th question.
+
+Question type selection per question (weighted random, evaluated each time):
+- `PhonemeQuestion`: always eligible — 50% weight when others available
+- `InitialSoundQuestion`: eligible when 2+ graphemes introduced — 25% weight
+- `BlendingQuestion`: eligible when `selectBlendingWord` returns non-null — 25% weight
+- If only one or two types eligible, weights are redistributed proportionally
+
+`questionIndex` dep array pattern — see comment in code. `progressMap` intentionally absent; adding it would cause an infinite loop via `recordPresented`.
+
+Holds a `jimmyRef` and calls `jimmyRef.current.react('happy'/'sad')` on answer.
+Progress is only recorded for phoneme/initial questions — blending questions don't map to a single grapheme.
+
+### `src/screens/SessionSummaryScreen.jsx`
+Shown after 10 questions. Displays Jimmy habitat (static pose based on score), coins earned, a score message, and "Play again" / "Home" buttons.
+- ≥ 7 correct → `happy` pose, "Amazing! Jimmy is so happy! 🌟"
+- ≥ 4 correct → `idle` pose, "Well done! Keep going! 😊"
+- < 4 correct → `sad` pose, "Good try! Practice makes perfect! 💪"
 
 ## Navigation
-Simple React state in `App.jsx` (`screen`: `"home"` | `"game"`). No router library.
+React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"`). No router library.
 
 ## Anti-guessing principle — critical design constraint
 - Each question gets exactly **one attempt**
@@ -167,3 +208,4 @@ Simple React state in `App.jsx` (`screen`: `"home"` | `"game"`). No router libra
 - **Session 1:** Scaffold, CLAUDE.md, tts + storage services, phonics data, usePet, PhonemeQuestion, basic App wiring
 - **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check); added ttsText to all phonics entries + word-by-word TTS pacing; recorded .wav files for all 50 graphemes; fixed StrictMode double-audio (AbortError guard + fallbackCalled flag)
 - **Session 3:** Refactored usePet to multi-stat model (energy, hunger, social, coins); replaced Jimmy emoji with habitat component (sprite, sky/grass, stat bars, coin counter); added InitialSoundQuestion; question type mixing (every 3rd question); updated HomeScreen to show habitat
+- **Session 4:** useJimmyAnimation hook (wandering/resting/reacting); animated Jimmy with forwardRef reactions; words.js with 50 Phase 2 CVC words; BlendingQuestion (phoneme-by-phoneme audio); weighted question type mixing (50/25/25); 10-question session tracking; SessionSummaryScreen
