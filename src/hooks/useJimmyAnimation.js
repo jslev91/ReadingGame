@@ -17,7 +17,7 @@ export function useJimmyAnimation() {
   const reactionTimerRef = useRef(null)
 
   useEffect(() => {
-    let walkFrame = false // alternates walk-1 / walk-2
+    let walkFrame = 0 // cycles 0–5 through walk-1 … walk-6
 
     const id = setInterval(() => {
       const { mode, direction, x } = stateRef.current
@@ -33,9 +33,9 @@ export function useJimmyAnimation() {
         return
       }
 
-      // Alternate walk frames
-      walkFrame = !walkFrame
-      setPose(walkFrame ? 'walk-1' : 'walk-2')
+      // Cycle through 6 walk frames
+      walkFrame = (walkFrame + 1) % 6
+      setPose(`walk-${walkFrame + 1}`)
 
       // Move and bounce
       setX(prev => {
