@@ -93,9 +93,11 @@ def find_row_split(img, threshold=40):
 def process_single(src_path, out_name):
     img = Image.open(src_path)
     out = remove_black_bg(img)
+    l, t, r, b = tight_bbox(out)
+    out = out.crop((l, t, r, b))
     dest = os.path.join(OUT, out_name)
     out.save(dest)
-    print(f"  saved {out_name}")
+    print(f"  saved {out_name}  {out.size}")
 
 
 def tight_bbox(rgba_img):
