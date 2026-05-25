@@ -4,7 +4,7 @@ export const ITEMS = [
     name: 'Leaves',
     description: 'Jimmy loves leaves!',
     type: 'consumable',
-    cost: 3,
+    cost: 8,
     sprite: '/images/items/food.png',
     emoji: '🍃',
     effect: {
@@ -20,7 +20,7 @@ export const ITEMS = [
     name: 'Bath Time',
     description: 'A nice tub for Jimmy!',
     type: 'consumable',
-    cost: 4,
+    cost: 10,
     sprite: '/images/items/bath.png',
     emoji: '🛁',
     effect: {
@@ -36,7 +36,7 @@ export const ITEMS = [
     name: 'Shovel',
     description: 'Keep the habitat tidy!',
     type: 'tool',
-    cost: 8,
+    cost: 20,
     sprite: '/images/items/shovel.png',
     emoji: '🪣',
     effect: null,

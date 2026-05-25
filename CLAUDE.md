@@ -85,9 +85,9 @@ Data shape per item:
 Current catalogue:
 | id | name | cost | active |
 |---|---|---|---|
-| food | Leaves | 3 | ✓ |
-| bath | Bath Time | 4 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
-| shovel | Shovel | 8 | ✓ (permanent tool, enables poop removal) |
+| food | Leaves | 8 | ✓ |
+| bath | Bath Time | 10 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
+| shovel | Shovel | 20 | ✓ (permanent tool, enables poop removal) |
 | hat | Top Hat | 30 | session 7 (4-day timed cosmetic) |
 | scarf | Rainbow Scarf | 25 | session 7 (4-day timed cosmetic) |
 
