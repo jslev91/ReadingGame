@@ -33,6 +33,8 @@ Exported `speak(audioKey, fallbackText)` function. Plays `/audio/${audioKey}.wav
 
 Recorded `.wav` files live in `public/audio/`. All 50 graphemes have recordings — TTS fallback is available but not expected to trigger in normal use.
 
+The cancel function returned by `speak()` clears both the Audio element and any pending TTS timer (100ms delay). Always use it as a `useEffect` cleanup. `speakBlending` in `BlendingQuestion` tracks cancel functions from all started `speak()` calls so `cancelAll` stops active audio, not just pending timeouts.
+
 ### `src/services/storage.js`
 Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`. Current user: `{ id: "guest", name: "Player" }`.
 
@@ -76,7 +78,7 @@ Persisted under `jimmy:{userId}:petState`. State shape:
 {
   energy:  { value: 70, max: 100 },
   hunger:  { value: 80, max: 100 },
-  social:  { value: 90, max: 100 },
+  cleanliness:  { value: 90, max: 100 },
   coins: 0,
   lastDecayTimestamp: <ISO string>
 }
@@ -90,9 +92,9 @@ Reward/penalty:
 - Correct: +1 coin, +5 energy
 - Wrong: −3 energy
 - Coins never decrease from gameplay (shop not built yet)
-- Hunger and social decay passively only — not yet affected by gameplay
+- Hunger and cleanliness decay passively only — not yet affected by gameplay
 
-`mood` derived from average of energy/hunger/social: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise.
+`mood` derived from average of energy/hunger/cleanliness: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise.
 
 Exposes: `stats`, `mood`, `onCorrect()`, `onWrong()`
 
@@ -207,5 +209,5 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"`). No route
 ## Session build history
 - **Session 1:** Scaffold, CLAUDE.md, tts + storage services, phonics data, usePet, PhonemeQuestion, basic App wiring
 - **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check); added ttsText to all phonics entries + word-by-word TTS pacing; recorded .wav files for all 50 graphemes; fixed StrictMode double-audio (AbortError guard + fallbackCalled flag)
-- **Session 3:** Refactored usePet to multi-stat model (energy, hunger, social, coins); replaced Jimmy emoji with habitat component (sprite, sky/grass, stat bars, coin counter); added InitialSoundQuestion; question type mixing (every 3rd question); updated HomeScreen to show habitat
+- **Session 3:** Refactored usePet to multi-stat model (energy, hunger, cleanliness, coins); replaced Jimmy emoji with habitat component (sprite, sky/grass, stat bars, coin counter); added InitialSoundQuestion; question type mixing (every 3rd question); updated HomeScreen to show habitat
 - **Session 4:** useJimmyAnimation hook (wandering/resting/reacting); animated Jimmy with forwardRef reactions; words.js with 50 Phase 2 CVC words; BlendingQuestion (phoneme-by-phoneme audio); weighted question type mixing (50/25/25); 10-question session tracking; SessionSummaryScreen
