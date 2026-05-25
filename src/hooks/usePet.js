@@ -18,39 +18,84 @@ const DEFAULTS = {
   lastDecayTimestamp: null,
   activeItems: [],
   inventory: { tools: [], cosmetics: [] },
+  poops: [],
+  nextPoopAt: null,
+}
+
+function randomPoopDelay() {
+  // 45–90 minutes in ms
+  return (45 + Math.floor(Math.random() * 46)) * 60 * 1000
 }
 
 function applyDecay(stats) {
-  if (!stats.lastDecayTimestamp) return stats
-  const elapsed = Date.now() - new Date(stats.lastDecayTimestamp).getTime()
   const now = Date.now()
 
-  // Remove expired items
+  // Schedule first poop if not yet set
+  let nextPoopAt = stats.nextPoopAt
+  if (!nextPoopAt) {
+    nextPoopAt = new Date(now + randomPoopDelay()).toISOString()
+  }
+
+  // Generate poop if due
+  let poops = stats.poops ?? []
+  if (new Date(nextPoopAt).getTime() <= now) {
+    if (poops.length < 3) {
+      poops = [
+        ...poops,
+        { id: uuid(), x: 5 + Math.floor(Math.random() * 81), placedAt: new Date(now).toISOString() },
+      ]
+    }
+    // Always advance nextPoopAt whether or not a poop was placed
+    nextPoopAt = new Date(now + randomPoopDelay()).toISOString()
+  }
+
+  if (!stats.lastDecayTimestamp) {
+    return { ...stats, poops, nextPoopAt }
+  }
+
+  const elapsed = now - new Date(stats.lastDecayTimestamp).getTime()
+
+  // Remove expired active items
   const activeItems = (stats.activeItems ?? []).filter(
     inst => new Date(inst.expiresAt).getTime() > now
   )
 
-  // Calculate hunger delta: active food items provide gain instead of decay
-  const foodActive = activeItems.some(inst => {
-    const def = getItem(inst.itemId)
-    return def?.effect?.stat === 'hunger'
-  })
-
+  // Hunger: food active → gain, else → decay
+  const foodActive = activeItems.some(inst => getItem(inst.itemId)?.effect?.stat === 'hunger')
   let hungerDelta
   if (foodActive) {
-    const totalRatePerMs = activeItems.reduce((sum, inst) => {
+    const ratePerMs = activeItems.reduce((sum, inst) => {
       const def = getItem(inst.itemId)
       if (def?.effect?.stat !== 'hunger') return sum
       return sum + def.effect.ratePerMinute / 60000
     }, 0)
-    hungerDelta = Math.floor(elapsed * totalRatePerMs)
+    hungerDelta = Math.floor(elapsed * ratePerMs)
   } else {
     hungerDelta = -Math.floor(elapsed / DECAY.hunger.intervalMs)
+  }
+
+  // Cleanliness: bath active → gain; poop present → faster decay
+  const bathActive = activeItems.some(inst => getItem(inst.itemId)?.effect?.stat === 'cleanliness')
+  let cleanlinessDelta
+  if (bathActive) {
+    const ratePerMs = activeItems.reduce((sum, inst) => {
+      const def = getItem(inst.itemId)
+      if (def?.effect?.stat !== 'cleanliness') return sum
+      return sum + def.effect.ratePerMinute / 60000
+    }, 0)
+    cleanlinessDelta = Math.floor(elapsed * ratePerMs)
+  } else {
+    // Each poop multiplies decay by ×1.5 (stackable)
+    const multiplier = Math.pow(1.5, poops.length)
+    const effectiveIntervalMs = DECAY.cleanliness.intervalMs / multiplier
+    cleanlinessDelta = -Math.floor(elapsed / effectiveIntervalMs)
   }
 
   return {
     ...stats,
     activeItems,
+    poops,
+    nextPoopAt,
     energy: {
       ...stats.energy,
       value: Math.max(0, stats.energy.value - Math.floor(elapsed / DECAY.energy.intervalMs)),
@@ -61,7 +106,7 @@ function applyDecay(stats) {
     },
     cleanliness: {
       ...stats.cleanliness,
-      value: Math.max(0, stats.cleanliness.value - Math.floor(elapsed / DECAY.cleanliness.intervalMs)),
+      value: Math.min(stats.cleanliness.max, Math.max(0, stats.cleanliness.value + cleanlinessDelta)),
     },
   }
 }
@@ -88,21 +133,22 @@ export function usePet(userId) {
     return applyDecay(saved)
   })
 
-  // Live tick: check for expired items and accumulate stat changes.
-  // Only resets lastDecayTimestamp when something actually changed — this lets
-  // elapsed time keep accumulating across ticks until it crosses an integer
-  // boundary (e.g. 2 minutes for hunger gain at 0.5/min).
+  // Live tick: check for expired items, new poops, and accumulated stat changes.
+  // Only resets lastDecayTimestamp when something changed, letting elapsed time
+  // accumulate across ticks until it's large enough to produce an integer change.
   useEffect(() => {
     const id = setInterval(() => {
       setStats(prev => {
         const next = applyDecay(prev)
-        const itemsExpired = next.activeItems.length !== prev.activeItems.length
-        const statsChanged = (
-          next.energy.value      !== prev.energy.value ||
-          next.hunger.value      !== prev.hunger.value ||
-          next.cleanliness.value !== prev.cleanliness.value
+        const changed = (
+          next.activeItems.length    !== prev.activeItems.length  ||
+          next.poops.length          !== prev.poops.length        ||
+          next.nextPoopAt            !== prev.nextPoopAt          ||
+          next.energy.value          !== prev.energy.value        ||
+          next.hunger.value          !== prev.hunger.value        ||
+          next.cleanliness.value     !== prev.cleanliness.value
         )
-        if (itemsExpired || statsChanged) {
+        if (changed) {
           const withTs = { ...next, lastDecayTimestamp: new Date().toISOString() }
           setItem(userId, STORAGE_KEY, withTs)
           return withTs
@@ -187,5 +233,25 @@ export function usePet(userId) {
     return { success: true }
   }
 
-  return { stats, mood: deriveMood(stats), onCorrect, onWrong, canAfford, canPurchase, purchaseItem }
+  function removePoop(poopId) {
+    save({
+      ...stats,
+      poops: stats.poops.filter(p => p.id !== poopId),
+      cleanliness: {
+        ...stats.cleanliness,
+        value: Math.min(stats.cleanliness.max, stats.cleanliness.value + 5),
+      },
+    })
+  }
+
+  return {
+    stats,
+    mood: deriveMood(stats),
+    onCorrect,
+    onWrong,
+    canAfford,
+    canPurchase,
+    purchaseItem,
+    removePoop,
+  }
 }
