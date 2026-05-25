@@ -1,14 +1,15 @@
-// Pose → image file mapping.
-// Only "idle" is available now. Future poses to add:
-//   walking-1 → jimmy-walk-1.png
-//   walking-2 → jimmy-walk-2.png
-//   sleep     → jimmy-sleep.png
-//   eating    → jimmy-eating.png
-//   happy     → jimmy-happy.png
-//   sad       → jimmy-sad.png
-const POSE_IMAGE = {
-  idle: '/images/jimmy-idle.png',
+import { forwardRef, useImperativeHandle } from 'react'
+import { useJimmyAnimation } from '../hooks/useJimmyAnimation'
+
+const SPRITES = {
+  'idle':   '/images/jimmy-idle.png',
+  'walk-1': '/images/jimmy-walk-1.png',
+  'walk-2': '/images/jimmy-walk-2.png',
+  'happy':  '/images/jimmy-happy.png',
+  'sad':    '/images/jimmy-sad.png',
+  'sleep':  '/images/jimmy-sleep.png',
 }
+const FALLBACK = '/images/jimmy-idle.png'
 
 function StatBar({ emoji, value, max, colour }) {
   const pct = Math.round((value / max) * 100)
@@ -25,17 +26,27 @@ function StatBar({ emoji, value, max, colour }) {
   )
 }
 
-// Props: stats (full usePet stats object), mood (string), pose (default "idle")
-export default function Jimmy({ stats, mood, pose = 'idle' }) {
-  const src = POSE_IMAGE[pose] ?? POSE_IMAGE.idle
+// Exposes react(pose) via ref so GameScreen can trigger reactions without managing
+// animation state itself. Using forwardRef + useImperativeHandle keeps the animation
+// hook internal and the component interface minimal.
+const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
+  const anim = useJimmyAnimation()
+
+  // poseProp overrides animation (used by SessionSummaryScreen for a static pose)
+  const activePose = poseProp ?? anim.pose
+  const src = SPRITES[activePose] ?? FALLBACK
+
+  useImperativeHandle(ref, () => ({
+    react: anim.react,
+  }))
+
+  const flipStyle = anim.direction === 'right' ? { transform: 'scaleX(-1)' } : {}
 
   return (
     <div className="w-full">
       {/* Habitat */}
       <div className="relative h-48 w-full rounded-2xl overflow-hidden">
-        {/* Sky */}
         <div className="absolute inset-0 bg-sky-300" />
-        {/* Grass strip */}
         <div className="absolute bottom-0 left-0 right-0 h-12 bg-green-500" />
 
         {/* Coin counter */}
@@ -43,15 +54,21 @@ export default function Jimmy({ stats, mood, pose = 'idle' }) {
           🪙 {stats.coins}
         </div>
 
-        {/* Jimmy sprite — sits on the grass line */}
+        {/* Jimmy sprite — animated position */}
         <img
           src={src}
           alt={`Jimmy the giraffe (${mood})`}
-          className="absolute h-24 w-auto bottom-8 left-1/2 -translate-x-1/2"
+          onError={e => { e.currentTarget.src = FALLBACK }}
+          className="absolute h-24 w-auto bottom-8"
+          style={{
+            left: `${anim.x}%`,
+            transform: `translateX(-50%) ${anim.direction === 'right' ? 'scaleX(-1)' : ''}`,
+            transition: 'left 0.4s linear',
+          }}
         />
       </div>
 
-      {/* Stat bars — below the habitat */}
+      {/* Stat bars */}
       <div className="flex gap-3 mt-2 px-1">
         <StatBar emoji="⚡" value={stats.energy.value} max={stats.energy.max} colour="bg-green-400" />
         <StatBar emoji="🍃" value={stats.hunger.value} max={stats.hunger.max} colour="bg-orange-400" />
@@ -59,4 +76,6 @@ export default function Jimmy({ stats, mood, pose = 'idle' }) {
       </div>
     </div>
   )
-}
+})
+
+export default Jimmy
