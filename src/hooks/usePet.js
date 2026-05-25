@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { getItem } from '../data/items'
 import { getItem as getStorageItem, setItem } from '../services/storage'
 
@@ -87,6 +87,31 @@ export function usePet(userId) {
     }
     return applyDecay(saved)
   })
+
+  // Live tick: check for expired items and accumulate stat changes.
+  // Only resets lastDecayTimestamp when something actually changed — this lets
+  // elapsed time keep accumulating across ticks until it crosses an integer
+  // boundary (e.g. 2 minutes for hunger gain at 0.5/min).
+  useEffect(() => {
+    const id = setInterval(() => {
+      setStats(prev => {
+        const next = applyDecay(prev)
+        const itemsExpired = next.activeItems.length !== prev.activeItems.length
+        const statsChanged = (
+          next.energy.value      !== prev.energy.value ||
+          next.hunger.value      !== prev.hunger.value ||
+          next.cleanliness.value !== prev.cleanliness.value
+        )
+        if (itemsExpired || statsChanged) {
+          const withTs = { ...next, lastDecayTimestamp: new Date().toISOString() }
+          setItem(userId, STORAGE_KEY, withTs)
+          return withTs
+        }
+        return prev
+      })
+    }, 10000)
+    return () => clearInterval(id)
+  }, [userId])
 
   function save(next) {
     const withTimestamp = { ...next, lastDecayTimestamp: new Date().toISOString() }
