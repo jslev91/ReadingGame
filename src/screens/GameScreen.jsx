@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { usePet } from '../hooks/usePet'
 import { useProgress } from '../hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
@@ -14,6 +14,7 @@ export default function GameScreen({ onHome }) {
   const [question, setQuestion] = useState(null)
   const [locked, setLocked] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
+  const jimmyRef = useRef(null)
 
   // questionIndex is the only dep. progress.progressMap is NOT stale because:
   // useProgress re-evaluates on every render, and recordCorrect/recordWrong update
@@ -32,6 +33,7 @@ export default function GameScreen({ onHome }) {
     setLocked(true)
     pet.onCorrect()
     progress.recordCorrect(question.entry.grapheme)
+    jimmyRef.current?.react('happy')
     setTimeout(() => setQuestionIndex(i => i + 1), 1000)
   }
 
@@ -40,6 +42,7 @@ export default function GameScreen({ onHome }) {
     setLocked(true)
     pet.onWrong()
     progress.recordWrong(question.entry.grapheme)
+    jimmyRef.current?.react('sad')
     setTimeout(() => setQuestionIndex(i => i + 1), 1500)
   }
 
@@ -60,7 +63,7 @@ export default function GameScreen({ onHome }) {
       </div>
 
       <div className="w-full max-w-sm">
-        <Jimmy stats={pet.stats} mood={pet.mood} />
+        <Jimmy ref={jimmyRef} stats={pet.stats} mood={pet.mood} />
       </div>
 
       {question && (
