@@ -62,6 +62,37 @@ Always call `speak(entry.audioKey, entry.ttsText)` — never speak the grapheme 
 
 Per-user grapheme status (`"unseen" | "introduced" | "practising" | "mastered"`) is stored separately via the storage service, not in this file.
 
+### `src/data/items.js`
+Shop catalogue. Single source of truth for all purchasable items.
+
+Data shape per item:
+```js
+{
+  id: 'food',
+  name: 'Leaves',
+  description: 'Jimmy loves leaves!',
+  type: 'consumable',      // 'consumable' | 'tool' | 'cosmetic'
+  cost: 3,
+  sprite: '/images/items/food.png',
+  emoji: '🍃',
+  effect: { stat: 'hunger', ratePerMinute: 0.5, duration: 30 },
+  maxActive: 1,
+  consumedOnUse: true,
+  comingSoon: true,        // present only on stub items — remove to unlock
+}
+```
+
+Current catalogue:
+| id | name | cost | active this session |
+|---|---|---|---|
+| food | Leaves | 3 | ✓ |
+| bath | Bath time | 4 | session 6 |
+| shovel | Shovel | 8 | session 6 |
+| hat | Top Hat | 15 | session 7 |
+| scarf | Rainbow Scarf | 12 | session 7 |
+
+Exports `ITEMS` array and `getItem(id)`.
+
 ### `src/data/words.js`
 50 decodable Phase 2 CVC words used by `BlendingQuestion`. Each entry:
 ```js
@@ -77,27 +108,36 @@ Exports `selectBlendingWord(progressMap)` which returns `{ wordEntry, distractor
 Persisted under `jimmy:{userId}:petState`. State shape:
 ```js
 {
-  energy:  { value: 70, max: 100 },
-  hunger:  { value: 80, max: 100 },
-  cleanliness:  { value: 90, max: 100 },
+  energy:      { value: 70, max: 100 },
+  hunger:      { value: 80, max: 100 },
+  cleanliness: { value: 90, max: 100 },
   coins: 0,
-  lastDecayTimestamp: <ISO string>
+  lastDecayTimestamp: <ISO string>,
+  activeItems: [
+    // { instanceId, itemId, x: 10–80, placedAt: ISO, expiresAt: ISO }
+  ],
+  inventory: {
+    tools: [],       // item ids owned permanently
+    cosmetics: [],
+  }
 }
 ```
 Decay (calculated from `lastDecayTimestamp` on load):
 - Energy: −1 per 5 minutes
-- Hunger: −1 per 8 minutes
-- Social: −1 per 20 minutes
+- Hunger: −1 per 8 minutes while no food active; +ratePerMinute while food active
+- Cleanliness: −1 per 20 minutes
+- Expired `activeItems` are pruned on load
 
 Reward/penalty:
 - Correct: +1 coin, +5 energy
 - Wrong: −3 energy
-- Coins never decrease from gameplay (shop not built yet)
-- Hunger and cleanliness decay passively only — not yet affected by gameplay
 
 `mood` derived from average of energy/hunger/cleanliness: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise.
 
-Exposes: `stats`, `mood`, `onCorrect()`, `onWrong()`
+Exposes: `stats`, `mood`, `onCorrect()`, `onWrong()`, `canAfford(itemId)`, `canPurchase(itemId)`, `purchaseItem(itemId)`
+
+`canPurchase` returns `{ canBuy, reason }`. Reasons: `insufficient_coins`, `already_active`, `already_owned`, `coming_soon`.
+`purchaseItem` deducts coins, adds instance to `activeItems` (consumables) or id to `inventory` (tools/cosmetics). Returns `{ success, reason? }`.
 
 ### `src/hooks/useProgress.js`
 Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`.
@@ -116,7 +156,7 @@ Drives Jimmy's movement and pose independently of game logic. Internal state:
 ```js
 { pose, direction: 'left'|'right', x: 5–90, mode: 'wandering'|'resting'|'reacting' }
 ```
-- Ticks every 400ms: alternates `walk-1`/`walk-2`, moves x ±2, bounces at 5 and 90
+- Ticks every 400ms: cycles `walk-1` through `walk-6`, moves x ±2, bounces at 5 and 90
 - 1-in-25 chance per tick of switching to `resting` (pose: `idle`, no movement, 1.5–3s pause)
 - `react(pose)`: sets mode to `reacting`, holds pose for 1200ms, then resumes `wandering`
 - Exposes: `{ pose, direction, x, react }`
@@ -131,8 +171,7 @@ A fixed-height (`h-48`) rectangular zone with sky-blue background and green gras
 Sprite mapping (all fall back to `jimmy-idle.png` via `onError`):
 ```
 idle     → jimmy-idle.png      (required — must exist)
-walk-1   → jimmy-walk-1.png
-walk-2   → jimmy-walk-2.png
+walk-1…6 → jimmy-walk-1…6.png
 happy    → jimmy-happy.png
 sad      → jimmy-sad.png
 sleep    → jimmy-sleep.png
@@ -141,7 +180,9 @@ Drop new sprites into `public/images/` and they appear automatically with no cod
 
 Optional `pose` prop overrides animation (used by SessionSummaryScreen for a static pose).
 
-Coin counter (🪙) in top-right corner. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 💬 Social (purple).
+Coin counter (🪙) in top-right corner. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 🛁 Cleanliness (purple).
+
+Active items from `stats.activeItems` are rendered as absolutely positioned elements on the grass at their stored `x` position, behind Jimmy (lower z-index). Items fade to `opacity-50` when >70% through their lifetime. Item sprite tried first, falls back to emoji.
 
 Props: `stats`, `mood`, `pose` (optional override).
 
@@ -162,7 +203,7 @@ Speaks each grapheme's phoneme in sequence (500ms gaps) then speaks the whole wo
 ## Screens
 
 ### `src/screens/HomeScreen.jsx`
-Shows Jimmy habitat and "Play with Jimmy" button.
+Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 64px), and reset button (bottom-right, small/hidden).
 
 ### `src/screens/GameScreen.jsx`
 Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned })` after the 10th question.
@@ -184,8 +225,11 @@ Shown after 10 questions. Displays Jimmy habitat (static pose based on score), c
 - ≥ 4 correct → `idle` pose, "Well done! Keep going! 😊"
 - < 4 correct → `sad` pose, "Good try! Practice makes perfect! 💪"
 
+### `src/screens/ShopScreen.jsx`
+2-column item grid. Each card shows emoji, name, cost. States: available (tappable), can't afford (cost in red), already active/owned (greyed, labelled), coming soon (greyed, no price). Tapping an available card shows a confirmation modal (emoji, name, cost, Buy/Cancel). On confirm calls `pet.purchaseItem(itemId)`. Flash message on success/failure. Calls `usePet` internally (same as HomeScreen).
+
 ## Navigation
-React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"`). No router library.
+React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`). No router library.
 
 ## Anti-guessing principle — critical design constraint
 - Each question gets exactly **one attempt**
@@ -212,3 +256,9 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"`). No route
 - **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check); added ttsText to all phonics entries + word-by-word TTS pacing; recorded .wav files for all 50 graphemes; fixed StrictMode double-audio (AbortError guard + fallbackCalled flag)
 - **Session 3:** Refactored usePet to multi-stat model (energy, hunger, cleanliness, coins); replaced Jimmy emoji with habitat component (sprite, sky/grass, stat bars, coin counter); added InitialSoundQuestion; question type mixing (every 3rd question); updated HomeScreen to show habitat
 - **Session 4:** useJimmyAnimation hook (wandering/resting/reacting); animated Jimmy with forwardRef reactions; words.js with 50 Phase 2 CVC words; BlendingQuestion (phoneme-by-phoneme audio); weighted question type mixing (50/25/25); 10-question session tracking; SessionSummaryScreen
+- **Session 5:** New sprites (happy, sad, 6-frame walk cycle); items.js catalogue; usePet extended with activeItems/inventory/purchaseItem; habitat renders placed items with expiry fade; ShopScreen; shop button on HomeScreen; fixed summary screen showing stale stats (stats/mood now passed through onSessionComplete)
+
+## Coming in session 6
+- Poop: random timed appearance in habitat; faster cleanliness decay while present; tap to remove (requires shovel)
+- Shovel activation: purchasing shovel enables poop removal
+- Bath item activation: instant cleanliness boost on purchase, no habitat placement
