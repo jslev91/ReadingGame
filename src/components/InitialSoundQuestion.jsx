@@ -52,7 +52,7 @@ export default function InitialSoundQuestion({ entry, distractors, onCorrect, on
   }
 
   function buttonClass(option) {
-    const base = 'min-h-16 w-24 rounded-2xl text-4xl font-bold transition-transform focus:outline-none'
+    const base = 'flex-1 min-h-16 rounded-2xl text-4xl font-bold transition-transform focus:outline-none'
     if (!answered) {
       return `${base} bg-white border-4 border-yellow-400 text-yellow-900 active:scale-95`
     }
@@ -76,7 +76,7 @@ export default function InitialSoundQuestion({ entry, distractors, onCorrect, on
         <span className="text-lg font-bold text-yellow-700">{prompt.charAt(0).toUpperCase() + prompt.slice(1)}?</span>
       </button>
 
-      <div className="flex gap-6">
+      <div className="flex gap-3 w-full px-2">
         {options.map((option, i) => (
           <button
             key={i}
@@ -92,7 +92,7 @@ export default function InitialSoundQuestion({ entry, distractors, onCorrect, on
 
       {answered && selected !== entry && (
         <p className="text-base font-bold text-gray-500">
-          It starts with <span className="text-green-600">{entry.phonemeDescription}</span>
+          The answer is <span className="text-green-600">{entry.phonemeDescription}</span>
         </p>
       )}
     </div>

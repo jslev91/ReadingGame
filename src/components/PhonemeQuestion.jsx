@@ -45,7 +45,7 @@ export default function PhonemeQuestion({ entry, distractors, onCorrect, onWrong
   }
 
   function buttonClass(option) {
-    const base = 'min-h-16 w-24 rounded-2xl text-4xl font-bold transition-transform focus:outline-none'
+    const base = 'flex-1 min-h-16 rounded-2xl text-4xl font-bold transition-transform focus:outline-none'
     if (!answered) {
       return `${base} bg-white border-4 border-yellow-400 text-yellow-900 active:scale-95`
     }
@@ -69,7 +69,7 @@ export default function PhonemeQuestion({ entry, distractors, onCorrect, onWrong
         <span className="text-lg font-bold text-yellow-700">Tap to hear the sound</span>
       </button>
 
-      <div className="flex gap-6">
+      <div className="flex gap-3 w-full px-2">
         {options.map((option, i) => (
           <button
             key={i}
