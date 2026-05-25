@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { usePet } from '../hooks/usePet'
 import { removeItem } from '../services/storage'
 import Jimmy from '../components/Jimmy'
@@ -11,7 +12,24 @@ function handleReset() {
 }
 
 export default function HomeScreen({ onPlay, onShop }) {
-  const { stats, mood } = usePet(GUEST.id)
+  const pet = usePet(GUEST.id)
+  const [toast, setToast] = useState(null) // { message, x }
+
+  function showToast(message, x) {
+    setToast({ message, x })
+    setTimeout(() => setToast(null), 1500)
+  }
+
+  function handlePoopTap(poopId) {
+    const poop = pet.stats.poops.find(p => p.id === poopId)
+    const x = poop?.x ?? 50
+    if (pet.stats.inventory.tools.includes('shovel')) {
+      pet.removePoop(poopId)
+      showToast('✨ Clean!', x)
+    } else {
+      showToast('Need a shovel! 🪣', x)
+    }
+  }
 
   return (
     <div className="relative min-h-screen bg-yellow-50 flex flex-col items-center justify-center gap-8 p-6">
@@ -24,8 +42,21 @@ export default function HomeScreen({ onPlay, onShop }) {
         🛍️
       </button>
 
-      <div className="w-full max-w-sm">
-        <Jimmy stats={stats} mood={mood} />
+      <div className="w-full max-w-sm relative">
+        <Jimmy
+          stats={pet.stats}
+          mood={pet.mood}
+          poops={pet.stats.poops ?? []}
+          onPoopTap={handlePoopTap}
+        />
+        {toast && (
+          <div
+            className="absolute text-sm font-bold bg-white rounded-xl px-3 py-1 shadow pointer-events-none"
+            style={{ left: `${toast.x}%`, top: '20%', transform: 'translateX(-50%)' }}
+          >
+            {toast.message}
+          </div>
+        )}
       </div>
 
       <button

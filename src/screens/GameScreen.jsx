@@ -17,7 +17,20 @@ export default function GameScreen({ onHome, onSessionComplete }) {
   const [question, setQuestion] = useState(null)
   const [locked, setLocked] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
+  const [poopToast, setPoopToast] = useState(null)
   const jimmyRef = useRef(null)
+
+  function handlePoopTap(poopId) {
+    const poop = pet.stats.poops.find(p => p.id === poopId)
+    const x = poop?.x ?? 50
+    if (pet.stats.inventory.tools.includes('shovel')) {
+      pet.removePoop(poopId)
+      setPoopToast({ message: '✨ Clean!', x })
+    } else {
+      setPoopToast({ message: 'Need a shovel! 🪣', x })
+    }
+    setTimeout(() => setPoopToast(null), 1500)
+  }
 
   // Session tracking — resets each time GameScreen mounts
   const sessionCorrect = useRef(0)
@@ -138,8 +151,22 @@ export default function GameScreen({ onHome, onSessionComplete }) {
         </span>
       </div>
 
-      <div className="w-full max-w-sm">
-        <Jimmy ref={jimmyRef} stats={pet.stats} mood={pet.mood} />
+      <div className="w-full max-w-sm relative">
+        <Jimmy
+          ref={jimmyRef}
+          stats={pet.stats}
+          mood={pet.mood}
+          poops={pet.stats.poops ?? []}
+          onPoopTap={handlePoopTap}
+        />
+        {poopToast && (
+          <div
+            className="absolute text-sm font-bold bg-white rounded-xl px-3 py-1 shadow pointer-events-none"
+            style={{ left: `${poopToast.x}%`, top: '20%', transform: 'translateX(-50%)' }}
+          >
+            {poopToast.message}
+          </div>
+        )}
       </div>
 
       {question && (
