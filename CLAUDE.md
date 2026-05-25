@@ -83,13 +83,13 @@ Data shape per item:
 ```
 
 Current catalogue:
-| id | name | cost | active this session |
+| id | name | cost | active |
 |---|---|---|---|
 | food | Leaves | 3 | ✓ |
-| bath | Bath time | 4 | session 6 |
-| shovel | Shovel | 8 | session 6 |
-| hat | Top Hat | 15 | session 7 |
-| scarf | Rainbow Scarf | 12 | session 7 |
+| bath | Bath Time | 4 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
+| shovel | Shovel | 8 | ✓ (permanent tool, enables poop removal) |
+| hat | Top Hat | 30 | session 7 (4-day timed cosmetic) |
+| scarf | Rainbow Scarf | 25 | session 7 (4-day timed cosmetic) |
 
 Exports `ITEMS` array and `getItem(id)`.
 
@@ -119,14 +119,22 @@ Persisted under `jimmy:{userId}:petState`. State shape:
   inventory: {
     tools: [],       // item ids owned permanently
     cosmetics: [],
-  }
+  },
+  poops: [],         // [{ id, x: 5–85, placedAt: ISO }]
+  nextPoopAt: null,  // ISO — when next poop will appear
 }
 ```
-Decay (calculated from `lastDecayTimestamp` on load):
+Decay and effects (applied on mount and via 10s live tick):
 - Energy: −1 per 5 minutes
-- Hunger: −1 per 8 minutes while no food active; +ratePerMinute while food active
-- Cleanliness: −1 per 20 minutes
-- Expired `activeItems` are pruned on load
+- Hunger: −1 per 8 min (no food); +ratePerMinute while food active
+- Cleanliness: −1 per 20 min baseline × poop multiplier (×1.5 per poop, stackable); +ratePerMinute while bath active
+- Expired `activeItems` pruned each tick
+
+Poop generation:
+- `nextPoopAt` initialised to 45–90 min from first load
+- Each tick: if `Date.now() >= nextPoopAt` and `poops.length < 3`, add poop at random x (5–85); always advance `nextPoopAt` by another 45–90 min
+
+Cleanliness decay multiplier: 0 poops = ×1.0, 1 = ×1.5, 2 = ×2.25, 3 = ×3.375
 
 Reward/penalty:
 - Correct: +1 coin, +5 energy
@@ -134,10 +142,11 @@ Reward/penalty:
 
 `mood` derived from average of energy/hunger/cleanliness: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise.
 
-Exposes: `stats`, `mood`, `onCorrect()`, `onWrong()`, `canAfford(itemId)`, `canPurchase(itemId)`, `purchaseItem(itemId)`
+Exposes: `stats`, `mood`, `onCorrect()`, `onWrong()`, `canAfford(itemId)`, `canPurchase(itemId)`, `purchaseItem(itemId)`, `removePoop(id)`
 
 `canPurchase` returns `{ canBuy, reason }`. Reasons: `insufficient_coins`, `already_active`, `already_owned`, `coming_soon`.
-`purchaseItem` deducts coins, adds instance to `activeItems` (consumables) or id to `inventory` (tools/cosmetics). Returns `{ success, reason? }`.
+`purchaseItem` deducts coins, adds instance to `activeItems` (consumables and cosmetics) or id to `inventory.tools` (tools). Cosmetics use `effect.duration` (in minutes) for `expiresAt` — they expire from `activeItems` after 4 days just like consumables. Returns `{ success, reason? }`.
+`removePoop(id)` removes the poop and awards +5 cleanliness. Caller must verify shovel ownership before calling.
 
 ### `src/hooks/useProgress.js`
 Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`.
@@ -184,7 +193,11 @@ Coin counter (🪙) in top-right corner. Three slim stat bars below: ⚡ Energy 
 
 Active items from `stats.activeItems` are rendered as absolutely positioned elements on the grass at their stored `x` position, behind Jimmy (lower z-index). Items fade to `opacity-50` when >70% through their lifetime. Item sprite tried first, falls back to emoji.
 
-Props: `stats`, `mood`, `pose` (optional override).
+Props: `stats`, `mood`, `pose` (optional override), `poops` (array of poop objects), `onPoopTap` (callback called with poop id).
+
+Poop rendering: `PoopItem` component — a 64px min-size button at `poop.x%` on the grass. Shows three animated `~` smell chars (CSS keyframe `smell`, staggered 0.4s delays, float upward and fade) above the 💩 emoji. Smell keyframes injected via `<style>` tag once in the habitat. No sprite needed — pure CSS + emoji.
+
+Toast pattern (HomeScreen and GameScreen): `{ message, x }` state, absolutely positioned above habitat at `left: ${x}%`, auto-dismissed after 1500ms via `setTimeout`.
 
 ### `src/components/PhonemeQuestion.jsx`
 Props: `entry`, `distractors`, `onCorrect`, `onWrong`, `locked`.
@@ -257,8 +270,8 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`
 - **Session 3:** Refactored usePet to multi-stat model (energy, hunger, cleanliness, coins); replaced Jimmy emoji with habitat component (sprite, sky/grass, stat bars, coin counter); added InitialSoundQuestion; question type mixing (every 3rd question); updated HomeScreen to show habitat
 - **Session 4:** useJimmyAnimation hook (wandering/resting/reacting); animated Jimmy with forwardRef reactions; words.js with 50 Phase 2 CVC words; BlendingQuestion (phoneme-by-phoneme audio); weighted question type mixing (50/25/25); 10-question session tracking; SessionSummaryScreen
 - **Session 5:** New sprites (happy, sad, 6-frame walk cycle); items.js catalogue; usePet extended with activeItems/inventory/purchaseItem; habitat renders placed items with expiry fade; ShopScreen; shop button on HomeScreen; fixed summary screen showing stale stats (stats/mood now passed through onSessionComplete)
+- **Session 6:** Poop generation (45–90 min intervals, max 3, random x); cleanliness decay multiplier per poop (×1.5 stackable); PoopItem with CSS smell animation; poop tap with shovel ownership check + toast; bath activated as placed consumable (0.6/min, 20 min); shovel activated (permanent tool); cosmetics changed to 4-day timed items (not permanent); coin economy rebalanced (cosmetic prices increased)
 
-## Coming in session 6
-- Poop: random timed appearance in habitat; faster cleanliness decay while present; tap to remove (requires shovel)
-- Shovel activation: purchasing shovel enables poop removal
-- Bath item activation: instant cleanliness boost on purchase, no habitat placement
+## Coming in session 7
+- Cosmetic overlays: render hat/scarf as sprite overlays on Jimmy (positioned relative to giraffe head/neck)
+- Consider multi-user profile support

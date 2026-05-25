@@ -197,8 +197,9 @@ export function usePet(userId) {
     if (def.type === 'tool' && stats.inventory.tools.includes(itemId)) {
       return { canBuy: false, reason: 'already_owned' }
     }
-    if (def.type === 'cosmetic' && stats.inventory.cosmetics.includes(itemId)) {
-      return { canBuy: false, reason: 'already_owned' }
+    if (def.type === 'cosmetic') {
+      const activeCount = stats.activeItems.filter(i => i.itemId === itemId).length
+      if (activeCount >= def.maxActive) return { canBuy: false, reason: 'already_active' }
     }
     return { canBuy: true }
   }
@@ -223,10 +224,21 @@ export function usePet(userId) {
           expiresAt,
         },
       ]
+    } else if (def.type === 'cosmetic') {
+      const now = Date.now()
+      const expiresAt = new Date(now + def.effect.duration * 60 * 1000).toISOString()
+      next.activeItems = [
+        ...stats.activeItems,
+        {
+          instanceId: uuid(),
+          itemId,
+          x: 10 + Math.floor(Math.random() * 71),
+          placedAt: new Date(now).toISOString(),
+          expiresAt,
+        },
+      ]
     } else if (def.type === 'tool') {
       next.inventory = { ...stats.inventory, tools: [...stats.inventory.tools, itemId] }
-    } else if (def.type === 'cosmetic') {
-      next.inventory = { ...stats.inventory, cosmetics: [...stats.inventory.cosmetics, itemId] }
     }
 
     save(next)
