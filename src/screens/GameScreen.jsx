@@ -70,6 +70,8 @@ export default function GameScreen({ onHome, onSessionComplete }) {
         correct: sessionCorrect.current,
         total: SESSION_LENGTH,
         coinsEarned: sessionCoins.current,
+        stats: pet.stats,
+        mood: pet.mood,
       }), correct ? 1000 : 1500)
     } else {
       setTimeout(() => setQuestionIndex(nextIndex), correct ? 1000 : 1500)

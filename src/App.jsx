@@ -1,15 +1,11 @@
 import { useState } from 'react'
-import { usePet } from './hooks/usePet'
 import HomeScreen from './screens/HomeScreen'
 import GameScreen from './screens/GameScreen'
 import SessionSummaryScreen from './screens/SessionSummaryScreen'
 
-const GUEST = { id: 'guest', name: 'Player' }
-
 export default function App() {
   const [screen, setScreen] = useState('home')
   const [sessionResult, setSessionResult] = useState(null)
-  const { stats, mood } = usePet(GUEST.id)
 
   if (screen === 'game') {
     return (
@@ -27,8 +23,8 @@ export default function App() {
     return (
       <SessionSummaryScreen
         result={sessionResult}
-        stats={stats}
-        mood={mood}
+        stats={sessionResult.stats}
+        mood={sessionResult.mood}
         onPlayAgain={() => setScreen('game')}
         onHome={() => setScreen('home')}
       />
