@@ -97,13 +97,15 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
           🪙 {stats.coins}
         </div>
 
-        {/* Jimmy sprite — animated position, z-index above items */}
+        {/* Jimmy sprite — fixed bounding box so landscape poses (sad) don't overflow */}
         <img
           src={src}
           alt={`Jimmy the giraffe (${mood})`}
           onError={e => { e.currentTarget.src = FALLBACK }}
-          className="absolute h-24 w-auto bottom-8"
+          className="absolute bottom-8 object-contain object-bottom"
           style={{
+            width: '80px',
+            height: '96px',
             left: `${anim.x}%`,
             transform: `translateX(-50%) ${anim.direction === 'right' ? 'scaleX(-1)' : ''}`,
             transition: 'left 0.4s linear',
