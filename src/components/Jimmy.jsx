@@ -16,6 +16,14 @@ const SPRITES = {
 }
 const FALLBACK = '/images/jimmy-idle.png'
 
+const smellKeyframes = `
+@keyframes smell {
+  0%   { opacity: 0; transform: translateY(0); }
+  40%  { opacity: 0.6; }
+  100% { opacity: 0; transform: translateY(-18px); }
+}
+`
+
 function StatBar({ emoji, value, max, colour }) {
   const pct = Math.round((value / max) * 100)
   return (
@@ -44,11 +52,7 @@ function HabitatItem({ instance }) {
   return (
     <div
       className={`absolute bottom-8 text-3xl select-none ${fading ? 'opacity-50' : ''}`}
-      style={{
-        left: `${instance.x}%`,
-        transform: 'translateX(-50%)',
-        zIndex: 1,
-      }}
+      style={{ left: `${instance.x}%`, transform: 'translateX(-50%)', zIndex: 1 }}
       aria-hidden="true"
     >
       {def.sprite ? (
@@ -64,13 +68,39 @@ function HabitatItem({ instance }) {
   )
 }
 
+function PoopItem({ poop, onTap }) {
+  return (
+    <button
+      onClick={() => onTap(poop.id)}
+      className="absolute bottom-8 min-w-16 min-h-16 flex flex-col items-center justify-end"
+      style={{ left: `${poop.x}%`, transform: 'translateX(-50%)', zIndex: 1 }}
+      aria-label="Poop — tap to clean"
+    >
+      {/* Smell animation */}
+      <div className="flex gap-0.5 mb-0.5 text-gray-400 text-xs" aria-hidden="true">
+        {['~', '~', '~'].map((w, i) => (
+          <span
+            key={i}
+            style={{
+              display: 'inline-block',
+              animation: `smell 1.6s ease-in-out ${i * 0.4}s infinite`,
+            }}
+          >
+            {w}
+          </span>
+        ))}
+      </div>
+      <span className="text-2xl leading-none select-none">💩</span>
+    </button>
+  )
+}
+
 // Exposes react(pose) via ref so GameScreen can trigger reactions without managing
 // animation state itself. Using forwardRef + useImperativeHandle keeps the animation
 // hook internal and the component interface minimal.
-const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
+const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [], onPoopTap }, ref) {
   const anim = useJimmyAnimation()
 
-  // poseProp overrides animation (used by SessionSummaryScreen for a static pose)
   const activePose = poseProp ?? anim.pose
   const src = SPRITES[activePose] ?? FALLBACK
 
@@ -82,6 +112,9 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
 
   return (
     <div className="w-full">
+      {/* Inject smell keyframes once */}
+      <style>{smellKeyframes}</style>
+
       {/* Habitat */}
       <div className="relative h-48 w-full rounded-2xl overflow-hidden">
         <div className="absolute inset-0 bg-sky-300" />
@@ -92,12 +125,17 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
           <HabitatItem key={inst.instanceId} instance={inst} />
         ))}
 
+        {/* Poops */}
+        {poops.map(poop => (
+          <PoopItem key={poop.id} poop={poop} onTap={onPoopTap ?? (() => {})} />
+        ))}
+
         {/* Coin counter */}
         <div className="absolute top-2 right-3 text-sm font-bold text-yellow-800 bg-yellow-100/80 rounded-full px-2 py-0.5">
           🪙 {stats.coins}
         </div>
 
-        {/* Jimmy sprite — fixed bounding box so landscape poses (sad) don't overflow */}
+        {/* Jimmy sprite */}
         <img
           src={src}
           alt={`Jimmy the giraffe (${mood})`}
