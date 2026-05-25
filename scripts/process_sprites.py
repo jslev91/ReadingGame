@@ -47,6 +47,49 @@ def remove_black_bg(img, threshold=40):
     return rgba
 
 
+def find_row_split(img, threshold=40):
+    """
+    Find the y-coordinate that separates the two sprite rows.
+    Finds all contiguous content segments, then splits at the midpoint
+    of the gap between the first and second segment.
+    """
+    pixels = img.load()
+    w, h = img.size
+
+    def row_has_content(y):
+        for x in range(w):
+            r, g, b = pixels[x, y][:3]
+            if not (r < threshold and g < threshold and b < threshold):
+                return True
+        return False
+
+    content_rows = [y for y in range(h) if row_has_content(y)]
+    if not content_rows:
+        return h // 2
+
+    # Find contiguous segments
+    segments = []
+    start = prev = content_rows[0]
+    for y in content_rows[1:]:
+        if y > prev + 1:
+            segments.append((start, prev))
+            start = y
+        prev = y
+    segments.append((start, prev))
+
+    print(f"  Content segments: {segments}")
+
+    if len(segments) < 2:
+        print("  Only one segment found, using h//2")
+        return h // 2
+
+    gap_start = segments[0][1] + 1
+    gap_end   = segments[1][0] - 1
+    split = (gap_start + gap_end) // 2
+    print(f"  Gap y={gap_start}–{gap_end}, splitting at y={split}")
+    return split
+
+
 def process_single(src_path, out_name):
     img = Image.open(src_path)
     out = remove_black_bg(img)
@@ -58,21 +101,22 @@ def process_single(src_path, out_name):
 def process_walk_sheet(src_path):
     img = Image.open(src_path)
     w, h = img.size
-    cols, rows = 3, 2
-    fw = w // cols
-    fh = h // rows
-    col_bounds = [(c * fw, (c+1)*fw if c < cols-1 else w) for c in range(cols)]
+    cols = 3
+    print(f"  Image size: {w}x{h}")
+
+    split_y = find_row_split(img)
+
+    row_bounds = [(0, split_y), (split_y, h)]
+    col_bounds = [(c * (w // cols), (c+1) * (w // cols) if c < cols-1 else w) for c in range(cols)]
+
     n = 1
-    for row in range(rows):
-        y0 = row * fh
-        y1 = (row+1)*fh if row < rows-1 else h
-        for col in range(cols):
-            x0, x1 = col_bounds[col]
+    for (y0, y1) in row_bounds:
+        for (x0, x1) in col_bounds:
             cell = img.crop((x0, y0, x1, y1))
             out = remove_black_bg(cell)
             name = f'jimmy-walk-{n}.png'
             out.save(os.path.join(OUT, name))
-            print(f"  saved {name}  ({x1-x0}x{y1-y0})")
+            print(f"  saved {name}  cell=({x0},{y0})-({x1},{y1})")
             n += 1
 
 
