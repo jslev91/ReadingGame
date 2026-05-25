@@ -98,6 +98,21 @@ def process_single(src_path, out_name):
     print(f"  saved {out_name}")
 
 
+def tight_bbox(rgba_img):
+    """Return (left, top, right, bottom) of non-transparent content."""
+    pixels = rgba_img.load()
+    w, h = rgba_img.size
+    min_x, min_y, max_x, max_y = w, h, 0, 0
+    for y in range(h):
+        for x in range(w):
+            if pixels[x, y][3] > 0:
+                min_x = min(min_x, x)
+                min_y = min(min_y, y)
+                max_x = max(max_x, x)
+                max_y = max(max_y, y)
+    return (min_x, min_y, max_x + 1, max_y + 1)
+
+
 def process_walk_sheet(src_path):
     img = Image.open(src_path)
     w, h = img.size
@@ -109,15 +124,28 @@ def process_walk_sheet(src_path):
     row_bounds = [(0, split_y), (split_y, h)]
     col_bounds = [(c * (w // cols), (c+1) * (w // cols) if c < cols-1 else w) for c in range(cols)]
 
-    n = 1
+    # First pass: remove backgrounds and find union bounding box
+    frames = []
+    union = [9999, 9999, 0, 0]
     for (y0, y1) in row_bounds:
         for (x0, x1) in col_bounds:
             cell = img.crop((x0, y0, x1, y1))
             out = remove_black_bg(cell)
-            name = f'jimmy-walk-{n}.png'
-            out.save(os.path.join(OUT, name))
-            print(f"  saved {name}  cell=({x0},{y0})-({x1},{y1})")
-            n += 1
+            frames.append(out)
+            l, t, r, b = tight_bbox(out)
+            union[0] = min(union[0], l)
+            union[1] = min(union[1], t)
+            union[2] = max(union[2], r)
+            union[3] = max(union[3], b)
+
+    print(f"  Shared bbox: {union}")
+
+    # Second pass: crop all frames to shared bbox
+    for n, frame in enumerate(frames, 1):
+        cropped = frame.crop(union)
+        name = f'jimmy-walk-{n}.png'
+        cropped.save(os.path.join(OUT, name))
+        print(f"  saved {name}  {cropped.size}")
 
 
 print("Processing jimmy-happy.jpg...")
