@@ -124,28 +124,43 @@ def process_walk_sheet(src_path):
     row_bounds = [(0, split_y), (split_y, h)]
     col_bounds = [(c * (w // cols), (c+1) * (w // cols) if c < cols-1 else w) for c in range(cols)]
 
-    # First pass: remove backgrounds and find union bounding box
-    frames = []
-    union = [9999, 9999, 0, 0]
+    # First pass: remove backgrounds, record per-frame content bboxes in original coords
+    frames = []  # (rgba_cell, cell_x0, cell_y0, abs_l, abs_t, abs_r, abs_b)
+    global_top    = 9999
+    global_bottom = 0
+    max_content_w = 0
+
     for (y0, y1) in row_bounds:
         for (x0, x1) in col_bounds:
             cell = img.crop((x0, y0, x1, y1))
             out = remove_black_bg(cell)
-            frames.append(out)
             l, t, r, b = tight_bbox(out)
-            union[0] = min(union[0], l)
-            union[1] = min(union[1], t)
-            union[2] = max(union[2], r)
-            union[3] = max(union[3], b)
+            abs_t = y0 + t
+            abs_b = y0 + b
+            global_top    = min(global_top,    abs_t)
+            global_bottom = max(global_bottom, abs_b)
+            max_content_w = max(max_content_w, r - l)
+            frames.append((out, x0, y0, l, t, r, b))
 
-    print(f"  Shared bbox: {union}")
+    # Canvas size: wide enough for the widest frame, tall enough for the tallest frame.
+    # All frames are bottom-aligned so the giraffe's feet sit at the same position
+    # in every frame — matches the CSS bottom-8 rendering in Jimmy.jsx.
+    max_content_h = max(b - t for (_, _, _, l, t, r, b) in frames)
+    out_h = max_content_h
+    out_w = max_content_w
+    print(f"  Output: {out_w}x{out_h} (bottom-aligned)")
 
-    # Second pass: crop all frames to shared bbox
-    for n, frame in enumerate(frames, 1):
-        cropped = frame.crop(union)
+    for n, (frame, x0, y0, l, t, r, b) in enumerate(frames, 1):
+        canvas = Image.new('RGBA', (out_w, out_h), (0, 0, 0, 0))
+        content = frame.crop((l, t, r, b))
+        content_h = b - t
+        content_w = r - l
+        dst_y = out_h - content_h        # bottom-align
+        dst_x = (out_w - content_w) // 2 # centre horizontally
+        canvas.paste(content, (dst_x, dst_y))
         name = f'jimmy-walk-{n}.png'
-        cropped.save(os.path.join(OUT, name))
-        print(f"  saved {name}  {cropped.size}")
+        canvas.save(os.path.join(OUT, name))
+        print(f"  saved {name}  content={content_w}x{content_h}  dst=({dst_x},{dst_y})")
 
 
 print("Processing jimmy-happy.jpg...")
