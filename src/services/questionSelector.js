@@ -16,9 +16,23 @@ function pickRandom(arr) {
   return arr[Math.floor(Math.random() * arr.length)]
 }
 
+// Graphemes that make the same phoneme — never use as distractors for each other
+const PHONEME_ALIASES = {
+  'c': ['k', 'ck'], 'k': ['c', 'ck'], 'ck': ['c', 'k'],
+  'f': ['ff'], 'ff': ['f'],
+  'l': ['ll'], 'll': ['l'],
+  's': ['ss'], 'ss': ['s'],
+  'z': ['zz'], 'zz': ['z'],
+}
+
+function isAmbiguous(grapheme, correct) {
+  return (PHONEME_ALIASES[correct.grapheme] ?? []).includes(grapheme)
+}
+
 function pickDistractors(correct, progressMap) {
   const introduced = phonics.filter(p =>
     p.grapheme !== correct.grapheme &&
+    !isAmbiguous(p.grapheme, correct) &&
     ['introduced', 'practising', 'mastered'].includes(getStatus(progressMap, p.grapheme))
   )
 
@@ -27,7 +41,9 @@ function pickDistractors(correct, progressMap) {
   // Fill remaining slots from Phase 2 in order if not enough introduced graphemes
   if (selected.length < 2) {
     const fallbacks = phase2.filter(
-      p => p.grapheme !== correct.grapheme && !selected.find(s => s.grapheme === p.grapheme)
+      p => p.grapheme !== correct.grapheme &&
+        !isAmbiguous(p.grapheme, correct) &&
+        !selected.find(s => s.grapheme === p.grapheme)
     )
     while (selected.length < 2 && fallbacks.length > 0) {
       selected.push(fallbacks.shift())

@@ -45,6 +45,7 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 3. After introducing a new grapheme, interleave it with review of `introduced` and `practising` graphemes
 4. `mastered` graphemes appear ~1 in 10 questions as maintenance review
 5. Distractors come only from graphemes the child has been introduced to; Phase 2 graphemes fill slots if fewer than 2 are available
+6. Same-phoneme graphemes are never used as distractors for each other (`PHONEME_ALIASES` in questionSelector.js): c/k/ck share /k/, f/ff share /f/, l/ll share /l/, s/ss share /s/, z/zz share /z/
 
 ## Data
 
