@@ -17,20 +17,19 @@ export const ITEMS = [
   },
   {
     id: 'bath',
-    name: 'Bath time',
-    description: 'Squeaky clean!',
+    name: 'Bath Time',
+    description: 'A nice tub for Jimmy!',
     type: 'consumable',
     cost: 4,
     sprite: '/images/items/bath.png',
     emoji: '🛁',
     effect: {
       stat: 'cleanliness',
-      ratePerMinute: 0,
-      duration: 0,
+      ratePerMinute: 0.6,
+      duration: 20,
     },
     maxActive: 1,
     consumedOnUse: true,
-    comingSoon: true,
   },
   {
     id: 'shovel',
@@ -43,7 +42,6 @@ export const ITEMS = [
     effect: null,
     maxActive: 1,
     consumedOnUse: false,
-    comingSoon: true,
   },
   {
     id: 'hat',
