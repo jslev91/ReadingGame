@@ -46,7 +46,9 @@ function deriveMood(stats) {
 
 export function usePet(userId) {
   const [stats, setStats] = useState(() => {
-    const saved = getItem(userId, STORAGE_KEY) ?? DEFAULTS
+    // Merge with DEFAULTS so renamed/added keys (e.g. social → cleanliness) don't crash
+    const raw = getItem(userId, STORAGE_KEY) ?? {}
+    const saved = { ...DEFAULTS, ...raw }
     return applyDecay(saved)
   })
 
