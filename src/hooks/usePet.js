@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { getItem } from '../data/items'
 import { getItem as getStorageItem, setItem } from '../services/storage'
 
@@ -123,6 +123,10 @@ function uuid() {
 }
 
 export function usePet(userId) {
+  // Remember what was in storage before applyDecay ran, so the mount effect
+  // can detect whether a poop was generated and needs immediate persistence.
+  const savedRef = useRef(null)
+
   const [stats, setStats] = useState(() => {
     const raw = getStorageItem(userId, STORAGE_KEY) ?? {}
     const saved = {
@@ -130,12 +134,24 @@ export function usePet(userId) {
       ...raw,
       inventory: { ...DEFAULTS.inventory, ...(raw.inventory ?? {}) },
     }
+    savedRef.current = saved
     return applyDecay(saved)
   })
 
+  // If applyDecay generated a poop or advanced nextPoopAt on mount, persist it
+  // immediately. Without this, the poop only reaches localStorage when the tick
+  // detects a numeric stat change — which never happens if all stats are at 0.
+  useEffect(() => {
+    const saved = savedRef.current
+    if (
+      stats.poops.length !== (saved.poops?.length ?? 0) ||
+      stats.nextPoopAt !== saved.nextPoopAt
+    ) {
+      setItem(userId, STORAGE_KEY, { ...stats, lastDecayTimestamp: new Date().toISOString() })
+    }
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Live tick: check for expired items, new poops, and accumulated stat changes.
-  // Only resets lastDecayTimestamp when something changed, letting elapsed time
-  // accumulate across ticks until it's large enough to produce an integer change.
   useEffect(() => {
     const id = setInterval(() => {
       setStats(prev => {
@@ -159,25 +175,31 @@ export function usePet(userId) {
     return () => clearInterval(id)
   }, [userId])
 
-  function save(next) {
-    const withTimestamp = { ...next, lastDecayTimestamp: new Date().toISOString() }
-    setItem(userId, STORAGE_KEY, withTimestamp)
-    setStats(withTimestamp)
+  // Use functional updates in save so it always reads the latest state rather than
+  // a potentially stale closure value. This prevents onCorrect/onWrong from
+  // overwriting a poop that the tick just added to state.
+  function save(updater) {
+    setStats(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      const withTimestamp = { ...next, lastDecayTimestamp: new Date().toISOString() }
+      setItem(userId, STORAGE_KEY, withTimestamp)
+      return withTimestamp
+    })
   }
 
   function onCorrect() {
-    save({
-      ...stats,
-      coins: stats.coins + 1,
-      energy: { ...stats.energy, value: Math.min(stats.energy.max, stats.energy.value + 5) },
-    })
+    save(prev => ({
+      ...prev,
+      coins: prev.coins + 1,
+      energy: { ...prev.energy, value: Math.min(prev.energy.max, prev.energy.value + 5) },
+    }))
   }
 
   function onWrong() {
-    save({
-      ...stats,
-      energy: { ...stats.energy, value: Math.max(0, stats.energy.value - 3) },
-    })
+    save(prev => ({
+      ...prev,
+      energy: { ...prev.energy, value: Math.max(0, prev.energy.value - 3) },
+    }))
   }
 
   function canAfford(itemId) {
@@ -209,51 +231,38 @@ export function usePet(userId) {
     if (!canBuy) return { success: false, reason }
 
     const def = getItem(itemId)
-    const next = { ...stats, coins: stats.coins - def.cost }
-
-    if (def.type === 'consumable') {
-      const now = Date.now()
-      const expiresAt = new Date(now + def.effect.duration * 60 * 1000).toISOString()
-      next.activeItems = [
-        ...stats.activeItems,
-        {
-          instanceId: uuid(),
-          itemId,
-          x: 10 + Math.floor(Math.random() * 71),
-          placedAt: new Date(now).toISOString(),
-          expiresAt,
-        },
-      ]
-    } else if (def.type === 'cosmetic') {
-      const now = Date.now()
-      const expiresAt = new Date(now + def.effect.duration * 60 * 1000).toISOString()
-      next.activeItems = [
-        ...stats.activeItems,
-        {
-          instanceId: uuid(),
-          itemId,
-          x: 10 + Math.floor(Math.random() * 71),
-          placedAt: new Date(now).toISOString(),
-          expiresAt,
-        },
-      ]
-    } else if (def.type === 'tool') {
-      next.inventory = { ...stats.inventory, tools: [...stats.inventory.tools, itemId] }
-    }
-
-    save(next)
+    save(prev => {
+      const next = { ...prev, coins: prev.coins - def.cost }
+      if (def.type === 'consumable' || def.type === 'cosmetic') {
+        const now = Date.now()
+        const expiresAt = new Date(now + def.effect.duration * 60 * 1000).toISOString()
+        next.activeItems = [
+          ...prev.activeItems,
+          {
+            instanceId: uuid(),
+            itemId,
+            x: 10 + Math.floor(Math.random() * 71),
+            placedAt: new Date(now).toISOString(),
+            expiresAt,
+          },
+        ]
+      } else if (def.type === 'tool') {
+        next.inventory = { ...prev.inventory, tools: [...prev.inventory.tools, itemId] }
+      }
+      return next
+    })
     return { success: true }
   }
 
   function removePoop(poopId) {
-    save({
-      ...stats,
-      poops: stats.poops.filter(p => p.id !== poopId),
+    save(prev => ({
+      ...prev,
+      poops: prev.poops.filter(p => p.id !== poopId),
       cleanliness: {
-        ...stats.cleanliness,
-        value: Math.min(stats.cleanliness.max, stats.cleanliness.value + 5),
+        ...prev.cleanliness,
+        value: Math.min(prev.cleanliness.max, prev.cleanliness.value + 5),
       },
-    })
+    }))
   }
 
   return {
