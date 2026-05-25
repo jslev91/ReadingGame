@@ -17,15 +17,16 @@ function getEntry(grapheme) {
 }
 
 // Speaks each phoneme in sequence with gaps, then speaks the whole word.
-// Returns a cancel function that stops all pending audio.
+// Returns a cancel function that stops all pending and active audio.
 function speakBlending(wordEntry) {
   let cancelled = false
   const timers = []
+  const cancelFns = []  // cancel functions from speak() calls already started
 
   const cancelAll = () => {
     cancelled = true
     timers.forEach(clearTimeout)
-    window.speechSynthesis?.cancel()
+    cancelFns.forEach(fn => fn())  // stop any audio already playing
   }
 
   let delay = 0
@@ -33,7 +34,7 @@ function speakBlending(wordEntry) {
     const entry = getEntry(grapheme)
     if (!entry) continue
     const t = setTimeout(() => {
-      if (!cancelled) speak(entry.audioKey, entry.ttsText)
+      if (!cancelled) cancelFns.push(speak(entry.audioKey, entry.ttsText))
     }, delay)
     timers.push(t)
     delay += 500
@@ -42,7 +43,7 @@ function speakBlending(wordEntry) {
   // Speak the whole word after phonemes finish
   const wordDelay = delay + 700
   const t = setTimeout(() => {
-    if (!cancelled) speak('', wordEntry.word)
+    if (!cancelled) cancelFns.push(speak('', wordEntry.word))
   }, wordDelay)
   timers.push(t)
 
