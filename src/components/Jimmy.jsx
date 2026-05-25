@@ -72,7 +72,7 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp }, ref) {
       <div className="flex gap-3 mt-2 px-1">
         <StatBar emoji="⚡" value={stats.energy.value} max={stats.energy.max} colour="bg-green-400" />
         <StatBar emoji="🍃" value={stats.hunger.value} max={stats.hunger.max} colour="bg-orange-400" />
-        <StatBar emoji="💬" value={stats.social.value} max={stats.social.max} colour="bg-purple-400" />
+        <StatBar emoji="🛁" value={stats.cleanliness.value} max={stats.cleanliness.max} colour="bg-purple-400" />
       </div>
     </div>
   )
