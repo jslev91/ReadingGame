@@ -10,11 +10,20 @@ function handleReset() {
   window.location.reload()
 }
 
-export default function HomeScreen({ onPlay }) {
+export default function HomeScreen({ onPlay, onShop }) {
   const { stats, mood } = usePet(GUEST.id)
 
   return (
     <div className="relative min-h-screen bg-yellow-50 flex flex-col items-center justify-center gap-8 p-6">
+      {/* Shop button */}
+      <button
+        onClick={onShop}
+        className="absolute top-4 right-4 min-h-16 min-w-16 flex items-center justify-center text-2xl rounded-2xl bg-white border-2 border-yellow-300 text-yellow-700 shadow-sm"
+        aria-label="Shop"
+      >
+        🛍️
+      </button>
+
       <div className="w-full max-w-sm">
         <Jimmy stats={stats} mood={mood} />
       </div>

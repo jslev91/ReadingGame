@@ -2,6 +2,7 @@ import { useState } from 'react'
 import HomeScreen from './screens/HomeScreen'
 import GameScreen from './screens/GameScreen'
 import SessionSummaryScreen from './screens/SessionSummaryScreen'
+import ShopScreen from './screens/ShopScreen'
 
 export default function App() {
   const [screen, setScreen] = useState('home')
@@ -31,5 +32,9 @@ export default function App() {
     )
   }
 
-  return <HomeScreen onPlay={() => setScreen('game')} />
+  if (screen === 'shop') {
+    return <ShopScreen onBack={() => setScreen('home')} />
+  }
+
+  return <HomeScreen onPlay={() => setScreen('game')} onShop={() => setScreen('shop')} />
 }
