@@ -14,25 +14,26 @@ function getBestVoice() {
 export function speak(audioKey, fallbackText) {
   const audio = new Audio(`/audio/${audioKey}.wav`)
   let fallbackCalled = false
-  let fallbackTimer = null  // tracked so cancel can clear it before it fires
+  let cancelled = false   // set by cancel fn; blocks late async onerror/catch callbacks
+  let fallbackTimer = null
 
   function triggerFallback() {
-    if (!fallbackCalled) {
-      fallbackCalled = true
-      if (!window.speechSynthesis) return
-      fallbackTimer = setTimeout(() => {
-        window.speechSynthesis.cancel()
-        const utterance = new SpeechSynthesisUtterance(fallbackText ?? audioKey)
-        utterance.lang = 'en-GB'
-        utterance.rate = 0.82
-        const voice = getBestVoice()
-        if (voice) utterance.voice = voice
-        window.speechSynthesis.speak(utterance)
-      }, 100)
-    }
+    if (fallbackCalled || cancelled) return
+    fallbackCalled = true
+    if (!window.speechSynthesis) return
+    fallbackTimer = setTimeout(() => {
+      window.speechSynthesis.cancel()
+      const utterance = new SpeechSynthesisUtterance(fallbackText ?? audioKey)
+      utterance.lang = 'en-GB'
+      utterance.rate = 0.82
+      const voice = getBestVoice()
+      if (voice) utterance.voice = voice
+      window.speechSynthesis.speak(utterance)
+    }, 100)
   }
 
-  // onerror fires when the file cannot be loaded (missing file, network error)
+  // onerror fires asynchronously — may arrive after cancel() has already run,
+  // so the cancelled flag (not just clearTimeout) is what actually stops it.
   audio.onerror = triggerFallback
 
   // AbortError means we intentionally paused via cleanup — do not fall back to TTS
@@ -41,9 +42,10 @@ export function speak(audioKey, fallbackText) {
   })
 
   return () => {
+    cancelled = true
     audio.pause()
     audio.currentTime = 0
-    clearTimeout(fallbackTimer)   // stop pending TTS before it fires
+    clearTimeout(fallbackTimer)
     window.speechSynthesis?.cancel()
   }
 }
