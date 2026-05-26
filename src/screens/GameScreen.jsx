@@ -7,6 +7,7 @@ import Jimmy from '../components/Jimmy'
 import PhonemeQuestion from '../components/PhonemeQuestion'
 import InitialSoundQuestion from '../components/InitialSoundQuestion'
 import BlendingQuestion from '../components/BlendingQuestion'
+import SpellingQuestion from '../components/SpellingQuestion'
 
 const GUEST = { id: 'guest', name: 'Player' }
 const SESSION_LENGTH = 10
@@ -45,25 +46,26 @@ export default function GameScreen({ onHome, onSessionComplete }) {
     const blending = selectBlendingWord(progress.progressMap)
     const introCount = Object.keys(progress.progressMap).length
 
-    // Weighted question type selection
-    // BlendingQuestion: eligible when selectBlendingWord returns non-null
-    // InitialSoundQuestion: eligible when 2+ graphemes introduced
-    // PhonemeQuestion: always eligible
-    let type = 'phoneme'
+    // Weighted question type selection: 40% phoneme, 20% initial, 20% blending, 20% spelling
+    // Types not yet eligible have weight 0; remaining weights are rescaled proportionally.
     const blendingEligible = blending !== null
     const initialEligible = introCount >= 2
-
-    if (blendingEligible && initialEligible) {
-      const r = Math.random()
-      type = r < 0.5 ? 'phoneme' : r < 0.75 ? 'initial' : 'blending'
-    } else if (blendingEligible) {
-      type = Math.random() < 0.75 ? 'phoneme' : 'blending'
-    } else if (initialEligible) {
-      type = Math.random() < 0.67 ? 'phoneme' : 'initial'
+    const typeWeights = {
+      phoneme:  0.4,
+      initial:  initialEligible  ? 0.2 : 0,
+      blending: blendingEligible ? 0.2 : 0,
+      spelling: blendingEligible ? 0.2 : 0,
+    }
+    const totalWeight = Object.values(typeWeights).reduce((a, b) => a + b, 0)
+    let r = Math.random() * totalWeight
+    let type = 'phoneme'
+    for (const [t, w] of Object.entries(typeWeights)) {
+      r -= w
+      if (r <= 0) { type = t; break }
     }
 
-    if (type === 'blending') {
-      setQuestion({ type: 'blending', ...blending })
+    if (type === 'blending' || type === 'spelling') {
+      setQuestion({ type, ...blending })
     } else {
       const next = selectNextQuestion(progress.progressMap)
       progress.recordPresented(next.entry.grapheme)
@@ -96,7 +98,7 @@ export default function GameScreen({ onHome, onSessionComplete }) {
     setLocked(true)
     const coinReward = pet.jimmySleeping ? 0 : 1
     pet.onCorrect(coinReward)
-    if (question.type !== 'blending') progress.recordCorrect(question.entry.grapheme)
+    if (question.type !== 'blending' && question.type !== 'spelling') progress.recordCorrect(question.entry.grapheme)
     jimmyRef.current?.react('happy')
     advance(true, coinReward)
   }
@@ -105,7 +107,7 @@ export default function GameScreen({ onHome, onSessionComplete }) {
     if (locked) return
     setLocked(true)
     pet.onWrong()
-    if (question.type !== 'blending') progress.recordWrong(question.entry.grapheme)
+    if (question.type !== 'blending' && question.type !== 'spelling') progress.recordWrong(question.entry.grapheme)
     jimmyRef.current?.react('sad')
     advance(false)
   }
@@ -118,6 +120,17 @@ export default function GameScreen({ onHome, onSessionComplete }) {
           key={'blending-' + questionIndex}
           wordEntry={question.wordEntry}
           distractors={question.distractors}
+          onCorrect={handleCorrect}
+          onWrong={handleWrong}
+          locked={locked}
+        />
+      )
+    }
+    if (question.type === 'spelling') {
+      return (
+        <SpellingQuestion
+          key={'spelling-' + questionIndex}
+          wordEntry={question.wordEntry}
           onCorrect={handleCorrect}
           onWrong={handleWrong}
           locked={locked}
