@@ -145,9 +145,9 @@ Reward/penalty:
 `mood` derived from average of energy/hunger/cleanliness: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise. If `hunger.value === 0`, mood is forced to `"sad"`.
 
 **Empty-bar consequences:**
-- Energy = 0 (`jimmySleeping`): Jimmy shows `sleep` pose with `animate-pulse`, 💤 badge in habitat top-left, coin reward halved (→ 0)
-- Hunger = 0: mood forced `"sad"`, Jimmy barely wanders (sluggish animation: 1-in-5 rest chance, ±1 step)
-- Cleanliness = 0: sepia+dim CSS filter on sprite, poop interval halved (22–45 min)
+- Energy ≤ 25 (`jimmySleeping`): Jimmy shows `sleep` pose with `animate-pulse`, 💤 badge in habitat top-left, coin reward → 0
+- Hunger ≤ 25 (sluggish): Jimmy barely wanders (1-in-2 rest chance, ±1 step); at 0 mood forced `"sad"`
+- Cleanliness = 0: green-tinted sepia CSS filter on sprite, poop interval halved (22–45 min)
 
 **Tool shape:** `inventory.tools` is an array of `{ id, usesRemaining }`. Legacy string arrays are migrated on load.
 
@@ -179,9 +179,9 @@ Drives Jimmy's movement and pose independently of game logic. Internal state:
 ```js
 { pose, direction: 'left'|'right', x: 5–90, mode: 'wandering'|'resting'|'reacting' }
 ```
-- Accepts optional `sluggish` boolean parameter (pass `stats.hunger.value === 0` from Jimmy)
+- Accepts optional `sluggish` boolean parameter (pass `stats.hunger.value <= 25` from Jimmy)
 - Ticks every 400ms: cycles `walk-1` through `walk-6`, moves x ±2 (±1 when sluggish), bounces at 5 and 90
-- 1-in-25 chance per tick of switching to `resting` (1-in-5 when sluggish); pose: `idle`, 1.5–3s pause
+- 1-in-25 chance per tick of switching to `resting` (1-in-2 when sluggish); pose: `idle`, 1.5–3s pause
 - `react(pose)`: sets mode to `reacting`, holds pose for 1200ms, then resumes `wandering`
 - Exposes: `{ pose, direction, x, react }`
 
@@ -202,11 +202,11 @@ sleep    → jimmy-sleep.png
 ```
 Drop new sprites into `public/images/` and they appear automatically with no code changes.
 
-Optional `pose` prop overrides animation (used by SessionSummaryScreen for a static pose). `jimmySleeping` (`energy === 0`) overrides all animation to `sleep` pose with `animate-pulse` class.
+Optional `pose` prop overrides animation (used by SessionSummaryScreen for a static pose). `jimmySleeping` (`energy <= 25`) overrides all animation to `sleep` pose with `animate-pulse` class. Sleep sprite is 95×140px at `bottom: 0` (portrait sprite — taller than wide).
 
 Coin counter (🪙) in top-right corner, with shovel use count (🪣 N) beside it — amber at ≤3 uses, red at ≤1, hidden when not owned. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 🛁 Cleanliness (purple), each with a small direction arrow (▲ green = rising, ▼ red = falling, ► grey = stable) computed by `getStatDirection(statName, stats, poops)`.
 
-💤 badge shown top-left when `energy === 0`. Sprite receives `filter: 'sepia(0.4) brightness(0.85)'` when `cleanliness === 0`.
+💤 badge shown top-left when `energy <= 25`. Sprite receives `filter: 'sepia(0.9) hue-rotate(60deg) brightness(0.7) saturate(1.8)'` (green-tinted sepia) when `cleanliness === 0`.
 
 Active items from `stats.activeItems` are rendered as absolutely positioned elements on the grass at their stored `x` position, behind Jimmy (lower z-index). Items fade to `opacity-50` when >70% through their lifetime. Item sprite tried first, falls back to emoji.
 
