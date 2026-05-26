@@ -2,6 +2,34 @@ import { forwardRef, useImperativeHandle } from 'react'
 import { useJimmyAnimation } from '../hooks/useJimmyAnimation'
 import { getItem } from '../data/items'
 
+const DECAY_RATES = {
+  hunger:      1 / 8,   // per minute
+  cleanliness: 1 / 20,  // per minute (before poop multiplier)
+}
+
+function getStatDirection(statName, stats, poops) {
+  if (statName === 'energy') return 'down'
+
+  const activeItems = stats.activeItems ?? []
+  const relevant = activeItems.filter(inst => getItem(inst.itemId)?.effect?.stat === statName)
+  if (relevant.length === 0) return 'down'
+
+  const itemRate = relevant.reduce((sum, inst) => {
+    const def = getItem(inst.itemId)
+    return sum + (def?.effect?.ratePerMinute ?? 0)
+  }, 0)
+
+  let decayRate = DECAY_RATES[statName] ?? 0
+  if (statName === 'cleanliness') {
+    decayRate *= Math.pow(1.5, (poops ?? []).length)
+  }
+
+  const net = itemRate - decayRate
+  if (net > 0.1) return 'up'
+  if (net >= -0.1) return 'stable'
+  return 'down'
+}
+
 const SPRITES = {
   'idle':   '/images/jimmy-idle.png',
   'walk-1': '/images/jimmy-walk-1.png',
@@ -24,11 +52,17 @@ const smellKeyframes = `
 }
 `
 
-function StatBar({ emoji, value, max, colour }) {
+const DIRECTION_ARROW = {
+  up:     <span className="text-xs text-green-600 ml-0.5">▲</span>,
+  down:   <span className="text-xs text-red-500 ml-0.5">▼</span>,
+  stable: <span className="text-xs text-gray-400 ml-0.5">►</span>,
+}
+
+function StatBar({ emoji, value, max, colour, direction }) {
   const pct = Math.round((value / max) * 100)
   return (
     <div className="flex-1">
-      <span className="text-xs">{emoji}</span>
+      <span className="text-xs">{emoji}{DIRECTION_ARROW[direction]}</span>
       <div className="h-2 rounded-full bg-gray-200 mt-0.5">
         <div
           className={`h-2 rounded-full ${colour} transition-all`}
@@ -167,9 +201,9 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
 
       {/* Stat bars */}
       <div className="flex gap-3 mt-2 px-1">
-        <StatBar emoji="⚡" value={stats.energy.value} max={stats.energy.max} colour="bg-green-400" />
-        <StatBar emoji="🍃" value={stats.hunger.value} max={stats.hunger.max} colour="bg-orange-400" />
-        <StatBar emoji="🛁" value={stats.cleanliness.value} max={stats.cleanliness.max} colour="bg-purple-400" />
+        <StatBar emoji="⚡" value={stats.energy.value} max={stats.energy.max} colour="bg-green-400" direction={getStatDirection('energy', stats, poops)} />
+        <StatBar emoji="🍃" value={stats.hunger.value} max={stats.hunger.max} colour="bg-orange-400" direction={getStatDirection('hunger', stats, poops)} />
+        <StatBar emoji="🛁" value={stats.cleanliness.value} max={stats.cleanliness.max} colour="bg-purple-400" direction={getStatDirection('cleanliness', stats, poops)} />
       </div>
     </div>
   )
