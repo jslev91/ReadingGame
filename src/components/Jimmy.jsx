@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle } from 'react'
 import { useJimmyAnimation } from '../hooks/useJimmyAnimation'
 import { getItem } from '../data/items'
+import { getCosmeticSprite } from '../services/cosmeticSprites'
 
 const DECAY_RATES = {
   hunger:      1 / 8,   // per minute
@@ -192,13 +193,11 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
           <div className="absolute top-2 left-3 text-lg" aria-label="Jimmy is sleeping">💤</div>
         )}
 
-        {/* Jimmy sprite */}
-        <img
-          src={src}
-          alt={`Jimmy the giraffe (${mood})`}
-          onError={e => { e.currentTarget.src = FALLBACK }}
-          className={`absolute object-contain object-bottom${jimmySleeping ? ' animate-pulse' : ''}`}
-          style={jimmySleeping ? {
+        {/* Jimmy sprite + cosmetic overlays */}
+        {(() => {
+          const cosmeticItems = activeItems.filter(i => getItem(i.itemId)?.type === 'cosmetic')
+          const debugOverlay = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('cosmeticDebug') === '1'
+          const spriteStyle = jimmySleeping ? {
             width: '95px',
             height: '140px',
             bottom: '0px',
@@ -216,8 +215,54 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
             transition: 'left 0.4s linear',
             zIndex: 2,
             filter: grubby ? 'sepia(0.9) hue-rotate(60deg) brightness(0.7) saturate(1.8)' : undefined,
-          }}
-        />
+          }
+          return (
+            <div
+              className={jimmySleeping ? 'absolute animate-pulse' : 'absolute'}
+              style={{ ...spriteStyle, display: 'inline-block' }}
+            >
+              <img
+                src={src}
+                alt={`Jimmy the giraffe (${mood})`}
+                onError={e => { e.currentTarget.src = FALLBACK }}
+                className="object-contain object-bottom"
+                style={{ width: '100%', height: '100%', display: 'block' }}
+              />
+              {cosmeticItems.map(item => {
+                const def = getItem(item.itemId)
+                if (!def?.overlayStyle) return null
+                if (debugOverlay) {
+                  return (
+                    <div
+                      key={item.instanceId}
+                      style={{
+                        position: 'absolute',
+                        pointerEvents: 'none',
+                        background: 'rgba(255,0,0,0.4)',
+                        border: '2px solid red',
+                        ...def.overlayStyle,
+                        height: def.overlayStyle.width,
+                      }}
+                    />
+                  )
+                }
+                return (
+                  <img
+                    key={item.instanceId}
+                    src={getCosmeticSprite(item.itemId)}
+                    alt=""
+                    style={{
+                      position: 'absolute',
+                      pointerEvents: 'none',
+                      ...def.overlayStyle,
+                    }}
+                    onError={e => { e.currentTarget.style.display = 'none' }}
+                  />
+                )
+              })}
+            </div>
+          )
+        })()}
       </div>
 
       {/* Stat bars */}
