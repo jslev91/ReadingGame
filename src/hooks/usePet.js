@@ -22,9 +22,11 @@ const DEFAULTS = {
   nextPoopAt: null,
 }
 
-function randomPoopDelay() {
-  // 45–90 minutes in ms
-  return (45 + Math.floor(Math.random() * 46)) * 60 * 1000
+function randomPoopDelay(fast = false) {
+  // 22–45 min when cleanliness is 0, else 45–90 min
+  const min = fast ? 22 : 45
+  const range = fast ? 24 : 46
+  return (min + Math.floor(Math.random() * range)) * 60 * 1000
 }
 
 function applyDecay(stats) {
@@ -38,6 +40,7 @@ function applyDecay(stats) {
 
   // Generate poop if due
   let poops = stats.poops ?? []
+  const dirtyHabitat = (stats.cleanliness?.value ?? 100) === 0
   if (new Date(nextPoopAt).getTime() <= now) {
     if (poops.length < 3) {
       poops = [
@@ -46,7 +49,7 @@ function applyDecay(stats) {
       ]
     }
     // Always advance nextPoopAt whether or not a poop was placed
-    nextPoopAt = new Date(now + randomPoopDelay()).toISOString()
+    nextPoopAt = new Date(now + randomPoopDelay(dirtyHabitat)).toISOString()
   }
 
   if (!stats.lastDecayTimestamp) {
@@ -112,6 +115,7 @@ function applyDecay(stats) {
 }
 
 function deriveMood(stats) {
+  if (stats.hunger.value === 0) return 'sad'
   const avg = (stats.energy.value + stats.hunger.value + stats.cleanliness.value) / 3
   if (avg > 60) return 'happy'
   if (avg > 30) return 'okay'
@@ -193,10 +197,10 @@ export function usePet(userId) {
     })
   }
 
-  function onCorrect() {
+  function onCorrect(coinReward = 1) {
     save(prev => ({
       ...prev,
-      coins: prev.coins + 1,
+      coins: prev.coins + coinReward,
       energy: { ...prev.energy, value: Math.min(prev.energy.max, prev.energy.value + 5) },
     }))
   }
@@ -294,6 +298,7 @@ export function usePet(userId) {
   return {
     stats,
     mood: deriveMood(stats),
+    jimmySleeping: stats.energy.value === 0,
     onCorrect,
     onWrong,
     canAfford,

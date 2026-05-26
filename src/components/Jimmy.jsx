@@ -143,9 +143,14 @@ function ShovelIndicator({ stats }) {
 }
 
 const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [], onPoopTap }, ref) {
-  const anim = useJimmyAnimation()
+  const jimmySleeping = stats.energy.value === 0
+  const sluggish = stats.hunger.value === 0
+  const grubby = stats.cleanliness.value === 0
 
-  const activePose = poseProp ?? anim.pose
+  const anim = useJimmyAnimation(sluggish)
+
+  // Sleep overrides all animation; poseProp overrides normal animation (e.g. summary screen)
+  const activePose = jimmySleeping ? 'sleep' : (poseProp ?? anim.pose)
   const src = SPRITES[activePose] ?? FALLBACK
 
   useImperativeHandle(ref, () => ({
@@ -182,12 +187,17 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
           </div>
         </div>
 
+        {/* Sleep badge */}
+        {jimmySleeping && (
+          <div className="absolute top-2 left-3 text-lg" aria-label="Jimmy is sleeping">💤</div>
+        )}
+
         {/* Jimmy sprite */}
         <img
           src={src}
           alt={`Jimmy the giraffe (${mood})`}
           onError={e => { e.currentTarget.src = FALLBACK }}
-          className="absolute bottom-8 object-contain object-bottom"
+          className={`absolute bottom-8 object-contain object-bottom${jimmySleeping ? ' animate-pulse' : ''}`}
           style={{
             width: '80px',
             height: '96px',
@@ -195,6 +205,7 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
             transform: `translateX(-50%) ${anim.direction === 'right' ? 'scaleX(-1)' : ''}`,
             transition: 'left 0.4s linear',
             zIndex: 2,
+            filter: grubby ? 'sepia(0.4) brightness(0.85)' : undefined,
           }}
         />
       </div>

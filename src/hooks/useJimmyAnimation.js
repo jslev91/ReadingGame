@@ -1,10 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 
 const TICK_MS = 400
-const STEP = 2
-const REST_CHANCE = 1 / 25
 
-export function useJimmyAnimation() {
+export function useJimmyAnimation(sluggish = false) {
   const [pose, setPose]           = useState('idle')
   const [direction, setDirection] = useState('right')
   const [x, setX]                 = useState(10)
@@ -14,6 +12,9 @@ export function useJimmyAnimation() {
   const stateRef = useRef({ pose, direction, x, mode })
   useEffect(() => { stateRef.current = { pose, direction, x, mode } }, [pose, direction, x, mode])
 
+  const sluggishRef = useRef(sluggish)
+  useEffect(() => { sluggishRef.current = sluggish }, [sluggish])
+
   const reactionTimerRef = useRef(null)
 
   useEffect(() => {
@@ -21,11 +22,13 @@ export function useJimmyAnimation() {
 
     const id = setInterval(() => {
       const { mode, direction, x } = stateRef.current
+      const isSluggy = sluggishRef.current
 
       if (mode !== 'wandering') return
 
-      // Chance to rest
-      if (Math.random() < REST_CHANCE) {
+      // Chance to rest: 1-in-5 when sluggish, else 1-in-25
+      const restChance = isSluggy ? 1 / 5 : 1 / 25
+      if (Math.random() < restChance) {
         setPose('idle')
         setMode('resting')
         const pause = 1500 + Math.random() * 1500
@@ -37,9 +40,10 @@ export function useJimmyAnimation() {
       walkFrame = (walkFrame + 1) % 6
       setPose(`walk-${walkFrame + 1}`)
 
-      // Move and bounce
+      // Move and bounce; sluggish = ±1 instead of ±2
+      const step = isSluggy ? 1 : 2
       setX(prev => {
-        const next = prev + (direction === 'right' ? STEP : -STEP)
+        const next = prev + (direction === 'right' ? step : -step)
         if (next >= 90) { setDirection('left');  return 90 }
         if (next <= 5)  { setDirection('right'); return 5  }
         return next
@@ -47,7 +51,7 @@ export function useJimmyAnimation() {
     }, TICK_MS)
 
     return () => clearInterval(id)
-  }, []) // interval created once; reads live state via ref
+  }, []) // interval created once; reads live state via refs
 
   function react(reactionPose) {
     if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current)

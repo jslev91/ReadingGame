@@ -72,11 +72,11 @@ export default function GameScreen({ onHome, onSessionComplete }) {
     setLocked(false)
   }, [questionIndex])
 
-  function advance(correct) {
+  function advance(correct, coinsEarned = 1) {
     const nextIndex = questionIndex + 1
     if (correct) {
       sessionCorrect.current += 1
-      sessionCoins.current += 1
+      sessionCoins.current += coinsEarned
     }
     if (nextIndex >= SESSION_LENGTH) {
       setTimeout(() => onSessionComplete({
@@ -94,10 +94,11 @@ export default function GameScreen({ onHome, onSessionComplete }) {
   function handleCorrect() {
     if (locked) return
     setLocked(true)
-    pet.onCorrect()
+    const coinReward = pet.jimmySleeping ? 0 : 1
+    pet.onCorrect(coinReward)
     if (question.type !== 'blending') progress.recordCorrect(question.entry.grapheme)
     jimmyRef.current?.react('happy')
-    advance(true)
+    advance(true, coinReward)
   }
 
   function handleWrong() {
