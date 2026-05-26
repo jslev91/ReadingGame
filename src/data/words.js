@@ -1,7 +1,7 @@
-// Decodable CVC words for the blending question type.
+// Decodable CVC/CCVC/CVCC words for blending and spelling question types.
 // graphemes must exactly match grapheme strings in phonics.js.
 // minIntroduced = minimum number of Phase 2 graphemes introduced before this word appears.
-// Words are sorted by minIntroduced so they unlock progressively.
+// Phase 4 words additionally require 10+ Phase 2 graphemes at practising or mastered.
 
 import phonics from './phonics'
 
@@ -73,6 +73,47 @@ export const words = [
   { word: 'log', graphemes: ['l', 'o', 'g'], phase: 2, minIntroduced: 21 },
   { word: 'lip', graphemes: ['l', 'i', 'p'], phase: 2, minIntroduced: 21 },
   { word: 'lot', graphemes: ['l', 'o', 't'], phase: 2, minIntroduced: 21 },
+
+  // Phase 4 — CCVC (consonant cluster at start)
+  { word: 'snap', graphemes: ['s', 'n', 'a', 'p'], phase: 4, minIntroduced: 6 },
+  { word: 'snip', graphemes: ['s', 'n', 'i', 'p'], phase: 4, minIntroduced: 6 },
+  { word: 'spin', graphemes: ['s', 'p', 'i', 'n'], phase: 4, minIntroduced: 6 },
+  { word: 'stop', graphemes: ['s', 't', 'o', 'p'], phase: 4, minIntroduced: 10 },
+  { word: 'skip', graphemes: ['s', 'k', 'i', 'p'], phase: 4, minIntroduced: 12 },
+  { word: 'step', graphemes: ['s', 't', 'e', 'p'], phase: 4, minIntroduced: 14 },
+  { word: 'stem', graphemes: ['s', 't', 'e', 'm'], phase: 4, minIntroduced: 14 },
+  { word: 'grip', graphemes: ['g', 'r', 'i', 'p'], phase: 4, minIntroduced: 16 },
+  { word: 'grin', graphemes: ['g', 'r', 'i', 'n'], phase: 4, minIntroduced: 16 },
+  { word: 'drip', graphemes: ['d', 'r', 'i', 'p'], phase: 4, minIntroduced: 16 },
+  { word: 'drop', graphemes: ['d', 'r', 'o', 'p'], phase: 4, minIntroduced: 16 },
+  { word: 'drum', graphemes: ['d', 'r', 'u', 'm'], phase: 4, minIntroduced: 16 },
+  { word: 'drag', graphemes: ['d', 'r', 'a', 'g'], phase: 4, minIntroduced: 16 },
+  { word: 'trip', graphemes: ['t', 'r', 'i', 'p'], phase: 4, minIntroduced: 16 },
+  { word: 'trot', graphemes: ['t', 'r', 'o', 't'], phase: 4, minIntroduced: 16 },
+  { word: 'prop', graphemes: ['p', 'r', 'o', 'p'], phase: 4, minIntroduced: 16 },
+  { word: 'crop', graphemes: ['c', 'r', 'o', 'p'], phase: 4, minIntroduced: 16 },
+  { word: 'cram', graphemes: ['c', 'r', 'a', 'm'], phase: 4, minIntroduced: 16 },
+  { word: 'slot', graphemes: ['s', 'l', 'o', 't'], phase: 4, minIntroduced: 21 },
+  { word: 'slim', graphemes: ['s', 'l', 'i', 'm'], phase: 4, minIntroduced: 21 },
+  { word: 'slug', graphemes: ['s', 'l', 'u', 'g'], phase: 4, minIntroduced: 21 },
+
+  // Phase 4 — CVCC (consonant cluster at end)
+  { word: 'damp', graphemes: ['d', 'a', 'm', 'p'], phase: 4, minIntroduced: 8 },
+  { word: 'sand', graphemes: ['s', 'a', 'n', 'd'], phase: 4, minIntroduced: 8 },
+  { word: 'pond', graphemes: ['p', 'o', 'n', 'd'], phase: 4, minIntroduced: 10 },
+  { word: 'kept', graphemes: ['k', 'e', 'p', 't'], phase: 4, minIntroduced: 14 },
+  { word: 'nest', graphemes: ['n', 'e', 's', 't'], phase: 4, minIntroduced: 14 },
+  { word: 'sent', graphemes: ['s', 'e', 'n', 't'], phase: 4, minIntroduced: 14 },
+  { word: 'tent', graphemes: ['t', 'e', 'n', 't'], phase: 4, minIntroduced: 14 },
+  { word: 'rust', graphemes: ['r', 'u', 's', 't'], phase: 4, minIntroduced: 16 },
+  { word: 'rest', graphemes: ['r', 'e', 's', 't'], phase: 4, minIntroduced: 16 },
+  { word: 'hint', graphemes: ['h', 'i', 'n', 't'], phase: 4, minIntroduced: 17 },
+  { word: 'bend', graphemes: ['b', 'e', 'n', 'd'], phase: 4, minIntroduced: 18 },
+  { word: 'best', graphemes: ['b', 'e', 's', 't'], phase: 4, minIntroduced: 18 },
+  { word: 'bump', graphemes: ['b', 'u', 'm', 'p'], phase: 4, minIntroduced: 18 },
+  { word: 'fist', graphemes: ['f', 'i', 's', 't'], phase: 4, minIntroduced: 19 },
+  { word: 'sink', graphemes: ['s', 'i', 'n', 'k'], phase: 4, minIntroduced: 12 },
+  { word: 'tank', graphemes: ['t', 'a', 'n', 'k'], phase: 4, minIntroduced: 12 },
 ]
 
 // Returns a word where all graphemes have been introduced, plus 2 distractors
@@ -85,10 +126,15 @@ export function selectBlendingWord(progressMap) {
       .map(p => p.grapheme)
   )
   const introCount = introducedGraphemes.size
+  const practisingOrMasteredCount = phase2.filter(
+    p => ['practising', 'mastered'].includes(progressMap[p.grapheme]?.status)
+  ).length
+  const phase4Unlocked = practisingOrMasteredCount >= 10
 
   const eligible = words.filter(w =>
     w.minIntroduced <= introCount &&
-    w.graphemes.every(g => introducedGraphemes.has(g))
+    w.graphemes.every(g => introducedGraphemes.has(g)) &&
+    (w.phase !== 4 || phase4Unlocked)
   )
 
   if (eligible.length < 3) return null
