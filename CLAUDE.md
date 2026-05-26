@@ -3,7 +3,7 @@
 ## Overview
 A phonics learning PWA for children aged 5–6, guided by a parent or teacher. Teaches reading using systematic synthetic phonics following the Letters and Sounds / ELS methodology.
 
-- **Core mechanic:** hear a phoneme, tap the correct grapheme from three options
+- **Core mechanic:** hear a phoneme, tap the correct grapheme (3–5 options scaling with mastery)
 - **Gamification:** a virtual pet giraffe called Jimmy whose energy rises with correct answers and decays slowly over time
 - **Language:** British English throughout — all text, all audio
 
@@ -20,7 +20,7 @@ src/
   data/        ← phonics curriculum (phonics.js, words.js)
   services/    ← tts.js, storage.js, questionSelector.js
   hooks/       ← usePet.js, useProgress.js, useJimmyAnimation.js
-  components/  ← Jimmy.jsx, PhonemeQuestion.jsx, InitialSoundQuestion.jsx, BlendingQuestion.jsx
+  components/  ← Jimmy.jsx, PhonemeQuestion.jsx, InitialSoundQuestion.jsx, BlendingQuestion.jsx, SpellingQuestion.jsx
   screens/     ← HomeScreen.jsx, GameScreen.jsx, SessionSummaryScreen.jsx
   context/     ← React contexts (unused so far)
 docs/          ← session briefings and reference material
@@ -44,8 +44,10 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 2. A new grapheme is introduced only when the most recently seen non-unseen grapheme has reached `practising` (3 correct answers) — this naturally paces introductions without a hard per-session cap
 3. After introducing a new grapheme, interleave it with review of `introduced` and `practising` graphemes
 4. `mastered` graphemes appear ~1 in 10 questions as maintenance review
-5. Distractors come only from graphemes the child has been introduced to; Phase 2 graphemes fill slots if fewer than 2 are available
-6. Same-phoneme graphemes are never used as distractors for each other (`PHONEME_ALIASES` in questionSelector.js): c/k/ck share /k/, f/ff share /f/, l/ll share /l/, s/ss share /s/, z/zz share /z/
+5. Distractors prefer phonetically confusable graphemes (`CONFUSABLE_PAIRS` map) when introduced; fall back to random introduced graphemes, then Phase 2 fills remaining slots
+6. Same-phoneme graphemes are never used as distractors for each other (`PHONEME_ALIASES`): c/k/ck share /k/, f/ff share /f/, l/ll share /l/, s/ss share /s/, z/zz share /z/
+
+Returns `{ entry, distractors, isNew, optionCount }`. `optionCount` is 3 (introduced), 4 (practising), or 5 (mastered) — distractors array length is always `optionCount - 1`.
 
 ## Data
 
@@ -87,20 +89,20 @@ Current catalogue:
 |---|---|---|---|
 | food | Leaves | 8 | ✓ |
 | bath | Bath Time | 10 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
-| shovel | Shovel | 20 | ✓ (permanent tool, enables poop removal) |
-| hat | Top Hat | 30 | session 7 (4-day timed cosmetic) |
-| scarf | Rainbow Scarf | 25 | session 7 (4-day timed cosmetic) |
+| shovel | Shovel | 20 | ✓ (tool, 10 uses, enables poop removal; `maxUses: 10`) |
+| hat | Top Hat | 30 | session 8 (4-day timed cosmetic) |
+| scarf | Rainbow Scarf | 25 | session 8 (4-day timed cosmetic) |
 
 Exports `ITEMS` array and `getItem(id)`.
 
 ### `src/data/words.js`
-50 decodable Phase 2 CVC words used by `BlendingQuestion`. Each entry:
+50 Phase 2 CVC words + 35 Phase 4 CCVC/CVCC words. Each entry:
 ```js
 { word: "sat", graphemes: ["s", "a", "t"], phase: 2, minIntroduced: 3 }
 ```
-`minIntroduced` gates words behind progression — a word only appears when the child has introduced at least that many Phase 2 graphemes AND all its component graphemes.
+`minIntroduced` gates words behind progression — a word only appears when the child has introduced at least that many Phase 2 graphemes AND all its component graphemes. Phase 4 words additionally require 10+ Phase 2 graphemes at `practising` or `mastered`.
 
-Exports `selectBlendingWord(progressMap)` which returns `{ wordEntry, distractors }` or `null` if fewer than 3 eligible words exist.
+Exports `selectBlendingWord(progressMap)` which returns `{ wordEntry, distractors }` or `null` if fewer than 3 eligible words exist. Used by both `BlendingQuestion` and `SpellingQuestion`.
 
 ## Hooks
 
@@ -117,7 +119,7 @@ Persisted under `jimmy:{userId}:petState`. State shape:
     // { instanceId, itemId, x: 10–80, placedAt: ISO, expiresAt: ISO }
   ],
   inventory: {
-    tools: [],       // item ids owned permanently
+    tools: [{ id: 'shovel', usesRemaining: 10 }],  // objects, not strings
     cosmetics: [],
   },
   poops: [],         // [{ id, x: 5–85, placedAt: ISO }]
@@ -131,22 +133,34 @@ Decay and effects (applied on mount and via 10s live tick):
 - Expired `activeItems` pruned each tick
 
 Poop generation:
-- `nextPoopAt` initialised to 45–90 min from first load
-- Each tick: if `Date.now() >= nextPoopAt` and `poops.length < 3`, add poop at random x (5–85); always advance `nextPoopAt` by another 45–90 min
+- `nextPoopAt` initialised to 45–90 min from first load (22–45 min when `cleanliness.value === 0`)
+- Each tick: if `Date.now() >= nextPoopAt` and `poops.length < 3`, add poop at random x (5–85); always advance `nextPoopAt`
 
 Cleanliness decay multiplier: 0 poops = ×1.0, 1 = ×1.5, 2 = ×2.25, 3 = ×3.375
 
 Reward/penalty:
-- Correct: +1 coin, +5 energy
+- Correct: +1 coin (0 when `jimmySleeping`), +5 energy
 - Wrong: −3 energy
 
-`mood` derived from average of energy/hunger/cleanliness: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise.
+`mood` derived from average of energy/hunger/cleanliness: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise. If `hunger.value === 0`, mood is forced to `"sad"`.
 
-Exposes: `stats`, `mood`, `onCorrect()`, `onWrong()`, `canAfford(itemId)`, `canPurchase(itemId)`, `purchaseItem(itemId)`, `removePoop(id)`
+**Empty-bar consequences:**
+- Energy = 0 (`jimmySleeping`): Jimmy shows `sleep` pose with `animate-pulse`, 💤 badge in habitat top-left, coin reward halved (→ 0)
+- Hunger = 0: mood forced `"sad"`, Jimmy barely wanders (sluggish animation: 1-in-5 rest chance, ±1 step)
+- Cleanliness = 0: sepia+dim CSS filter on sprite, poop interval halved (22–45 min)
 
-`canPurchase` returns `{ canBuy, reason }`. Reasons: `insufficient_coins`, `already_active`, `already_owned`, `coming_soon`.
-`purchaseItem` deducts coins, adds instance to `activeItems` (consumables and cosmetics) or id to `inventory.tools` (tools). Cosmetics use `effect.duration` (in minutes) for `expiresAt` — they expire from `activeItems` after 4 days just like consumables. Returns `{ success, reason? }`.
-`removePoop(id)` removes the poop and awards +5 cleanliness. Caller must verify shovel ownership before calling.
+**Tool shape:** `inventory.tools` is an array of `{ id, usesRemaining }`. Legacy string arrays are migrated on load.
+
+Tool helpers (internal to hook, also exposed):
+- `hasTool(id)` → boolean
+- `getToolUses(id)` → number | null
+
+`removePoop(id)` removes the poop, awards +5 cleanliness, and decrements the shovel's `usesRemaining` (removing it when 0). Caller must check `hasTool('shovel')` before calling.
+
+Exposes: `stats`, `mood`, `jimmySleeping`, `onCorrect(coinReward?)`, `onWrong()`, `canAfford(itemId)`, `canPurchase(itemId)`, `purchaseItem(itemId)`, `removePoop(id)`, `hasTool(id)`, `getToolUses(id)`
+
+`canPurchase` returns `{ canBuy, reason }`. Reasons: `insufficient_coins`, `already_active`, `already_owned` (tool with uses > 0), `coming_soon`. Tools with `usesRemaining === 0` can be repurchased.
+`purchaseItem` for tools pushes `{ id, usesRemaining: def.maxUses ?? 10 }`.
 
 ### `src/hooks/useProgress.js`
 Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`.
@@ -165,8 +179,9 @@ Drives Jimmy's movement and pose independently of game logic. Internal state:
 ```js
 { pose, direction: 'left'|'right', x: 5–90, mode: 'wandering'|'resting'|'reacting' }
 ```
-- Ticks every 400ms: cycles `walk-1` through `walk-6`, moves x ±2, bounces at 5 and 90
-- 1-in-25 chance per tick of switching to `resting` (pose: `idle`, no movement, 1.5–3s pause)
+- Accepts optional `sluggish` boolean parameter (pass `stats.hunger.value === 0` from Jimmy)
+- Ticks every 400ms: cycles `walk-1` through `walk-6`, moves x ±2 (±1 when sluggish), bounces at 5 and 90
+- 1-in-25 chance per tick of switching to `resting` (1-in-5 when sluggish); pose: `idle`, 1.5–3s pause
 - `react(pose)`: sets mode to `reacting`, holds pose for 1200ms, then resumes `wandering`
 - Exposes: `{ pose, direction, x, react }`
 
@@ -187,9 +202,11 @@ sleep    → jimmy-sleep.png
 ```
 Drop new sprites into `public/images/` and they appear automatically with no code changes.
 
-Optional `pose` prop overrides animation (used by SessionSummaryScreen for a static pose).
+Optional `pose` prop overrides animation (used by SessionSummaryScreen for a static pose). `jimmySleeping` (`energy === 0`) overrides all animation to `sleep` pose with `animate-pulse` class.
 
-Coin counter (🪙) in top-right corner. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 🛁 Cleanliness (purple).
+Coin counter (🪙) in top-right corner, with shovel use count (🪣 N) beside it — amber at ≤3 uses, red at ≤1, hidden when not owned. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 🛁 Cleanliness (purple), each with a small direction arrow (▲ green = rising, ▼ red = falling, ► grey = stable) computed by `getStatDirection(statName, stats, poops)`.
+
+💤 badge shown top-left when `energy === 0`. Sprite receives `filter: 'sepia(0.4) brightness(0.85)'` when `cleanliness === 0`.
 
 Active items from `stats.activeItems` are rendered as absolutely positioned elements on the grass at their stored `x` position, behind Jimmy (lower z-index). Items fade to `opacity-50` when >70% through their lifetime. Item sprite tried first, falls back to emoji.
 
@@ -201,7 +218,7 @@ Toast pattern (HomeScreen and GameScreen): `{ message, x }` state, absolutely po
 
 ### `src/components/PhonemeQuestion.jsx`
 Props: `entry`, `distractors`, `onCorrect`, `onWrong`, `locked`.
-Speaks the phoneme on mount. Shows 🔊 replay. Three `flex-1` grapheme buttons (shuffled). One attempt only.
+Speaks the phoneme on mount. Shows 🔊 replay. Grapheme buttons in a `flex flex-wrap` row — 3, 4, or 5 buttons depending on `distractors.length`. At 5 options each button gets `flexBasis: calc(33% - 0.5rem)` so they wrap 3+2. One attempt only.
 
 ### `src/components/InitialSoundQuestion.jsx`
 Props: same as PhonemeQuestion. Child hears a whole word and taps its target grapheme. TTS fallback intentional. Question wording is position-aware via `getSegmentInfo(entry)`:
@@ -213,6 +230,17 @@ Props: same as PhonemeQuestion. Child hears a whole word and taps its target gra
 Props: `wordEntry`, `distractors` (2 word objects), `onCorrect`, `onWrong`, `locked`.
 Speaks each grapheme's phoneme in sequence (500ms gaps) then speaks the whole word (700ms after last phoneme). Child taps the correct written word from three options. Distractors share at least one grapheme with the target. Same anti-guessing rules.
 
+### `src/components/SpellingQuestion.jsx`
+Props: `wordEntry`, `onCorrect`, `onWrong`, `locked`.
+Speaks the whole word on mount, then phonemes one by one (800ms gap before phonemes). 🔊 replay button. Picks its own 2 grapheme distractors from Phase 2 (graphemes not in the word).
+
+UI: blank tiles (one per grapheme in `wordEntry.graphemes`) at the top; shuffled grapheme buttons below (word graphemes + 2 distractors, all as individual buttons — duplicates show multiple buttons).
+
+Tap handling (per-position, anti-guessing):
+- Correct: fills blank green, moves to next position
+- Wrong: tapped button flashes red, correct button flashes green for 800ms, correct grapheme auto-fills blank (grey), records error
+- Once all positions filled: fires `onCorrect()` if no errors, `onWrong()` if any errors. GameScreen's `advance()` adds the inter-question delay.
+
 ## Screens
 
 ### `src/screens/HomeScreen.jsx`
@@ -221,16 +249,17 @@ Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 6
 ### `src/screens/GameScreen.jsx`
 Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned })` after the 10th question.
 
-Question type selection per question (weighted random, evaluated each time):
-- `PhonemeQuestion`: always eligible — 50% weight when others available
-- `InitialSoundQuestion`: eligible when 2+ graphemes introduced — 25% weight
-- `BlendingQuestion`: eligible when `selectBlendingWord` returns non-null — 25% weight
-- If only one or two types eligible, weights are redistributed proportionally
+Question type selection per question (weighted random, evaluated each time, ineligible types get weight 0 and others rescale):
+- `PhonemeQuestion`: always eligible — 40%
+- `InitialSoundQuestion`: eligible when 2+ graphemes introduced — 20%
+- `BlendingQuestion`: eligible when `selectBlendingWord` returns non-null — 20%
+- `SpellingQuestion`: eligible when `selectBlendingWord` returns non-null — 20%
 
 `questionIndex` dep array pattern — see comment in code. `progressMap` intentionally absent; adding it would cause an infinite loop via `recordPresented`.
 
 Holds a `jimmyRef` and calls `jimmyRef.current.react('happy'/'sad')` on answer.
-Progress is only recorded for phoneme/initial questions — blending questions don't map to a single grapheme.
+Progress recorded only for phoneme/initial questions — blending and spelling don't map to a single grapheme.
+Coin reward is 0 (not 1) when `pet.jimmySleeping`.
 
 ### `src/screens/SessionSummaryScreen.jsx`
 Shown after 10 questions. Displays Jimmy habitat (static pose based on score), coins earned, a score message, and "Play again" / "Home" buttons.
@@ -271,7 +300,9 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`
 - **Session 4:** useJimmyAnimation hook (wandering/resting/reacting); animated Jimmy with forwardRef reactions; words.js with 50 Phase 2 CVC words; BlendingQuestion (phoneme-by-phoneme audio); weighted question type mixing (50/25/25); 10-question session tracking; SessionSummaryScreen
 - **Session 5:** New sprites (happy, sad, 6-frame walk cycle); items.js catalogue; usePet extended with activeItems/inventory/purchaseItem; habitat renders placed items with expiry fade; ShopScreen; shop button on HomeScreen; fixed summary screen showing stale stats (stats/mood now passed through onSessionComplete)
 - **Session 6:** Poop generation (45–90 min intervals, max 3, random x); cleanliness decay multiplier per poop (×1.5 stackable); PoopItem with CSS smell animation; poop tap with shovel ownership check + toast; bath activated as placed consumable (0.6/min, 20 min); shovel activated (permanent tool); cosmetics changed to 4-day timed items (not permanent); coin economy rebalanced (cosmetic prices increased)
+- **Session 7:** Shovel durability (10 uses, use count display, legacy migration); stat bar direction arrows (▲▼►); empty-bar consequences (sleep pose, sluggish wander, grubby filter, faster poops, halved coins); confusable distractor engine (CONFUSABLE_PAIRS); dynamic option count (3/4/5 by mastery, flex-wrap buttons); 35 Phase 4 CCVC/CVCC words; SpellingQuestion component; question weights updated to 40/20/20/20; sleep/dirty/hat sprites processed
 
-## Coming in session 7
-- Cosmetic overlays: render hat/scarf as sprite overlays on Jimmy (positioned relative to giraffe head/neck)
-- Consider multi-user profile support
+## Coming in session 8
+- **Cosmetic overlays:** hat and scarf render as `<img>` overlays inside the Jimmy sprite container. Each cosmetic in `items.js` needs an `overlayStyle` object: `{ top, left, width }` as % of the sprite bounding box. The overlay must flip `scaleX(-1)` when Jimmy faces right. Hat sits on head; scarf at neck. Remove `comingSoon` from hat and scarf in `items.js` to unlock them.
+- **User profiles:** profile selection screen on launch, create profile flow (name + colour picker), per-profile storage (already keyed by userId). Guest profile stays as fallback.
+- **Tricky words:** `TrickyWordQuestion` — show a high-frequency irregular word via TTS, then show it among 3 similar-length tricky words. Child taps the one just shown. Pure visual memory. Add `src/data/trickyWords.js` (20+ entries: the, said, was, are, they, were, you, your, come, some, …). Weight: 10–15% of questions once 5+ tricky words seen.
