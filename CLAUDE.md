@@ -81,8 +81,11 @@ Data shape per item:
   maxActive: 1,
   consumedOnUse: true,
   comingSoon: true,        // present only on stub items — remove to unlock
+  overlayStyle: { top: '2%', left: '8%', width: '32%' }, // cosmetics only
 }
 ```
+
+`overlayStyle` positions the cosmetic overlay `<img>` relative to the Jimmy sprite container (percentage values). Only present on cosmetic items. Scarf has `overlayStyle` defined but remains `comingSoon: true` until its sprite arrives.
 
 Current catalogue:
 | id | name | cost | active |
@@ -90,10 +93,19 @@ Current catalogue:
 | food | Leaves | 8 | ✓ |
 | bath | Bath Time | 10 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
 | shovel | Shovel | 20 | ✓ (tool, 10 uses, enables poop removal; `maxUses: 10`) |
-| hat | Top Hat | 30 | session 8 (4-day timed cosmetic) |
-| scarf | Rainbow Scarf | 25 | session 8 (4-day timed cosmetic) |
+| hat | Top Hat | 30 | ✓ (4-day timed cosmetic, renders as overlay on sprite) |
+| scarf | Rainbow Scarf | 25 | session 9 (comingSoon — sprite not yet added) |
 
 Exports `ITEMS` array and `getItem(id)`.
+
+### `src/data/trickyWords.js`
+26 high-frequency irregular words from Letters and Sounds, in phase order. Data shape:
+```js
+{ word: 'the', phase: 2, audioFallback: 'the' }
+```
+Phase 2 (5): the, to, no, go, I. Phase 3 (12): he, she, we, me, be, was, my, you, they, her, all, are. Phase 4 (9): said, so, do, some, come, were, there, little, one, out.
+
+Exports `TRICKY_WORDS` array and `getTrickyWord(word)`.
 
 ### `src/data/words.js`
 50 Phase 2 CVC words + 35 Phase 4 CCVC/CVCC words. Each entry:
@@ -163,16 +175,28 @@ Exposes: `stats`, `mood`, `jimmySleeping`, `onCorrect(coinReward?)`, `onWrong()`
 `purchaseItem` for tools pushes `{ id, usesRemaining: def.maxUses ?? 10 }`.
 
 ### `src/hooks/useProgress.js`
-Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`.
+Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`. Tricky word progress stored separately under `jimmy:{userId}:trickyWordProgress`.
 
-State shape per grapheme:
+**Grapheme state shape:**
 ```js
 { status: "unseen"|"introduced"|"practising"|"mastered", correctCount: 0, lastSeen: null }
 ```
-
 Transitions: `unseen → introduced` on first presentation; `introduced → practising` at 3 correct; `practising → mastered` at 7 correct. Wrong answers don't regress status.
 
-Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `recordCorrect(grapheme)`, `recordWrong(grapheme)`.
+**Tricky word state shape (per word):**
+```js
+{ status: "unseen"|"seen"|"familiar"|"known", correctCount: 0, lastSeen: null }
+```
+Transitions: `unseen → seen` on first presentation; `seen → familiar` at 3 correct; `familiar → known` at 7 correct.
+
+**Phase gating for tricky words:** Phase 3 words unlock when 3 Phase 2 words are `familiar`/`known`. Phase 4 words unlock when 3 Phase 3 words are `familiar`/`known`.
+
+**`selectNextTrickyWord(trickyProgressMap)`** — exported standalone function (not a hook method). Returns `{ targetWord, distractors: [word, word] }` or `null` if no eligible words. Prefers words not yet `familiar`; 70% chance of targeting the current unfamiliar word, 30% review of seen pool. Distractors come from seen words first, then upcoming unseen words.
+
+Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `recordCorrect(grapheme)`, `recordWrong(grapheme)`, `trickyWordProgressMap`, `recordTrickyPresented(word)`, `recordTrickyCorrect(word)`, `recordTrickyWrong(word)`.
+
+### `src/services/cosmeticSprites.js`
+Maps cosmetic item ids to their overlay sprite paths (`/images/cosmetics/*.png`). Export `getCosmeticSprite(itemId)` → path string or `null`. Add new entries here when new cosmetic sprites arrive.
 
 ### `src/hooks/useJimmyAnimation.js`
 Drives Jimmy's movement and pose independently of game logic. Internal state:
@@ -208,6 +232,8 @@ Coin counter (🪙) in top-right corner, with shovel use count (🪣 N) beside i
 
 💤 badge shown top-left when `energy <= 25`. Sprite receives `filter: 'sepia(0.9) hue-rotate(60deg) brightness(0.7) saturate(1.8)'` (green-tinted sepia) when `cleanliness === 0`.
 
+**Cosmetic overlays:** active cosmetic items (`type === 'cosmetic'` in `stats.activeItems`) are rendered as `<img>` overlays inside a `position: relative; display: inline-block` wrapper around the sprite. The wrapper carries all movement/flip/animation styles (previously on the `<img>` directly), so `scaleX(-1)` direction flip applies to both sprite and overlays automatically. Overlay position comes from `def.overlayStyle` (percentage-based `top/left/width`). `onError` hides missing overlay sprites gracefully. `?cosmeticDebug=1` URL param renders red bounding boxes instead of images for position tuning — remove debug check once positions are finalised.
+
 Active items from `stats.activeItems` are rendered as absolutely positioned elements on the grass at their stored `x` position, behind Jimmy (lower z-index). Items fade to `opacity-50` when >70% through their lifetime. Item sprite tried first, falls back to emoji.
 
 Props: `stats`, `mood`, `pose` (optional override), `poops` (array of poop objects), `onPoopTap` (callback called with poop id).
@@ -241,6 +267,15 @@ Tap handling (per-position, anti-guessing):
 - Wrong: tapped button flashes red, correct button flashes green for 800ms, correct grapheme auto-fills blank (grey), records error
 - Once all positions filled: fires `onCorrect()` if no errors, `onWrong()` if any errors. GameScreen's `advance()` adds the inter-question delay.
 
+### `src/components/TrickyWordQuestion.jsx`
+Props: `targetWord` (tricky word object), `distractors` (array of 2 word objects), `onCorrect`, `onWrong`, `locked`.
+
+Two-phase presentation:
+- **Phase 1 (1500ms):** target word shown large (`text-6xl font-bold`), TTS speaks it immediately. No buttons.
+- **Phase 2:** word shown smaller above 3 vertically-stacked buttons. "Which one did you see?" prompt (parent reads aloud). 🔊 replay button. Shuffled options (target + 2 distractors).
+
+Tap handling: anti-guessing rules — one attempt, wrong reveals correct (green), tapped wrong button highlights red. `onWrong` fires 800ms after wrong tap (for animation). `onCorrect` fires immediately.
+
 ## Screens
 
 ### `src/screens/HomeScreen.jsx`
@@ -250,10 +285,11 @@ Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 6
 Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned })` after the 10th question.
 
 Question type selection per question (weighted random, evaluated each time, ineligible types get weight 0 and others rescale):
-- `PhonemeQuestion`: always eligible — 40%
+- `PhonemeQuestion`: always eligible — 35%
 - `InitialSoundQuestion`: eligible when 2+ graphemes introduced — 20%
-- `BlendingQuestion`: eligible when `selectBlendingWord` returns non-null — 20%
-- `SpellingQuestion`: eligible when `selectBlendingWord` returns non-null — 20%
+- `BlendingQuestion`: eligible when `selectBlendingWord` returns non-null — 15%
+- `SpellingQuestion`: eligible when `selectBlendingWord` returns non-null — 15%
+- `TrickyWordQuestion`: eligible when `selectNextTrickyWord` returns non-null — 15%
 
 `questionIndex` dep array pattern — see comment in code. `progressMap` intentionally absent; adding it would cause an infinite loop via `recordPresented`.
 
@@ -301,8 +337,8 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`
 - **Session 5:** New sprites (happy, sad, 6-frame walk cycle); items.js catalogue; usePet extended with activeItems/inventory/purchaseItem; habitat renders placed items with expiry fade; ShopScreen; shop button on HomeScreen; fixed summary screen showing stale stats (stats/mood now passed through onSessionComplete)
 - **Session 6:** Poop generation (45–90 min intervals, max 3, random x); cleanliness decay multiplier per poop (×1.5 stackable); PoopItem with CSS smell animation; poop tap with shovel ownership check + toast; bath activated as placed consumable (0.6/min, 20 min); shovel activated (permanent tool); cosmetics changed to 4-day timed items (not permanent); coin economy rebalanced (cosmetic prices increased)
 - **Session 7:** Shovel durability (10 uses, use count display, legacy migration); stat bar direction arrows (▲▼►); empty-bar consequences (sleep pose, sluggish wander, grubby filter, faster poops, halved coins); confusable distractor engine (CONFUSABLE_PAIRS); dynamic option count (3/4/5 by mastery, flex-wrap buttons); 35 Phase 4 CCVC/CVCC words; SpellingQuestion component; question weights updated to 40/20/20/20; sleep/dirty/hat sprites processed
+- **Session 8:** Cosmetic overlays (hat renders on Jimmy's head, flips with direction, sprite wrapper pattern); `cosmeticSprites.js` service; `overlayStyle` in items.js; hat unlocked, scarf still comingSoon; 26 tricky words in `trickyWords.js`; tricky word progress tracking in `useProgress.js` (separate storage key, unseen→seen→familiar→known); `TrickyWordQuestion` component (1500ms presentation phase); question weights 35/20/15/15/15; `selectNextTrickyWord` exported from useProgress
 
-## Coming in session 8
-- **Cosmetic overlays:** hat and scarf render as `<img>` overlays inside the Jimmy sprite container. Each cosmetic in `items.js` needs an `overlayStyle` object: `{ top, left, width }` as % of the sprite bounding box. The overlay must flip `scaleX(-1)` when Jimmy faces right. Hat sits on head; scarf at neck. Remove `comingSoon` from hat and scarf in `items.js` to unlock them.
-- **User profiles:** profile selection screen on launch, create profile flow (name + colour picker), per-profile storage (already keyed by userId). Guest profile stays as fallback.
-- **Tricky words:** `TrickyWordQuestion` — show a high-frequency irregular word via TTS, then show it among 3 similar-length tricky words. Child taps the one just shown. Pure visual memory. Add `src/data/trickyWords.js` (20+ entries: the, said, was, are, they, were, you, your, come, some, …). Weight: 10–15% of questions once 5+ tricky words seen.
+## Coming in session 9
+- **User profiles:** profile selection screen on launch, create profile flow (name + colour picker), per-profile storage (already keyed by userId). Guest profile stays as migration fallback — on first launch after this session, if guest data exists offer it as a profile to keep. Consider a parent/settings area accessible via long-press on home screen (view progress, reset profile, manage profiles).
+- **Scarf cosmetic:** remove `comingSoon` from scarf in `items.js` once `public/images/cosmetics/scarf.png` is added. Tune `overlayStyle` position with `?cosmeticDebug=1`.
