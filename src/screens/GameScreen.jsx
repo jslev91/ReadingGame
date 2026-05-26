@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePet } from '../hooks/usePet'
-import { useProgress } from '../hooks/useProgress'
+import { useProgress, selectNextTrickyWord } from '../hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
 import { selectBlendingWord } from '../data/words'
 import Jimmy from '../components/Jimmy'
@@ -8,6 +8,7 @@ import PhonemeQuestion from '../components/PhonemeQuestion'
 import InitialSoundQuestion from '../components/InitialSoundQuestion'
 import BlendingQuestion from '../components/BlendingQuestion'
 import SpellingQuestion from '../components/SpellingQuestion'
+import TrickyWordQuestion from '../components/TrickyWordQuestion'
 
 const GUEST = { id: 'guest', name: 'Player' }
 const SESSION_LENGTH = 10
@@ -15,6 +16,7 @@ const SESSION_LENGTH = 10
 export default function GameScreen({ onHome, onSessionComplete }) {
   const pet = usePet(GUEST.id)
   const progress = useProgress(GUEST.id)
+  const trickyQuestion = useRef(null)
   const [question, setQuestion] = useState(null)
   const [locked, setLocked] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
@@ -46,15 +48,18 @@ export default function GameScreen({ onHome, onSessionComplete }) {
     const blending = selectBlendingWord(progress.progressMap)
     const introCount = Object.keys(progress.progressMap).length
 
-    // Weighted question type selection: 40% phoneme, 20% initial, 20% blending, 20% spelling
+    // Weighted question type selection: 35% phoneme, 20% initial, 15% blending, 15% spelling, 15% tricky
     // Types not yet eligible have weight 0; remaining weights are rescaled proportionally.
     const blendingEligible = blending !== null
     const initialEligible = introCount >= 2
+    const tricky = selectNextTrickyWord(progress.trickyWordProgressMap)
+    trickyQuestion.current = tricky
     const typeWeights = {
-      phoneme:  0.4,
-      initial:  initialEligible  ? 0.2 : 0,
-      blending: blendingEligible ? 0.2 : 0,
-      spelling: blendingEligible ? 0.2 : 0,
+      phoneme:  0.35,
+      initial:  initialEligible  ? 0.20 : 0,
+      blending: blendingEligible ? 0.15 : 0,
+      spelling: blendingEligible ? 0.15 : 0,
+      tricky:   tricky           ? 0.15 : 0,
     }
     const totalWeight = Object.values(typeWeights).reduce((a, b) => a + b, 0)
     let r = Math.random() * totalWeight
@@ -66,6 +71,9 @@ export default function GameScreen({ onHome, onSessionComplete }) {
 
     if (type === 'blending' || type === 'spelling') {
       setQuestion({ type, ...blending })
+    } else if (type === 'tricky') {
+      progress.recordTrickyPresented(trickyQuestion.current.targetWord.word)
+      setQuestion({ type, ...trickyQuestion.current })
     } else {
       const next = selectNextQuestion(progress.progressMap)
       progress.recordPresented(next.entry.grapheme)
@@ -98,7 +106,11 @@ export default function GameScreen({ onHome, onSessionComplete }) {
     setLocked(true)
     const coinReward = pet.jimmySleeping ? 0 : 1
     pet.onCorrect(coinReward)
-    if (question.type !== 'blending' && question.type !== 'spelling') progress.recordCorrect(question.entry.grapheme)
+    if (question.type === 'tricky') {
+      progress.recordTrickyCorrect(question.targetWord.word)
+    } else if (question.type !== 'blending' && question.type !== 'spelling') {
+      progress.recordCorrect(question.entry.grapheme)
+    }
     jimmyRef.current?.react('happy')
     advance(true, coinReward)
   }
@@ -107,13 +119,29 @@ export default function GameScreen({ onHome, onSessionComplete }) {
     if (locked) return
     setLocked(true)
     pet.onWrong()
-    if (question.type !== 'blending' && question.type !== 'spelling') progress.recordWrong(question.entry.grapheme)
+    if (question.type === 'tricky') {
+      progress.recordTrickyWrong(question.targetWord.word)
+    } else if (question.type !== 'blending' && question.type !== 'spelling') {
+      progress.recordWrong(question.entry.grapheme)
+    }
     jimmyRef.current?.react('sad')
     advance(false)
   }
 
   function renderQuestion() {
     if (!question) return null
+    if (question.type === 'tricky') {
+      return (
+        <TrickyWordQuestion
+          key={'tricky-' + questionIndex}
+          targetWord={question.targetWord}
+          distractors={question.distractors}
+          onCorrect={handleCorrect}
+          onWrong={handleWrong}
+          locked={locked}
+        />
+      )
+    }
     if (question.type === 'blending') {
       return (
         <BlendingQuestion
