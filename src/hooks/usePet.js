@@ -201,7 +201,7 @@ export function usePet(userId) {
     save(prev => ({
       ...prev,
       coins: prev.coins + coinReward,
-      energy: { ...prev.energy, value: Math.min(prev.energy.max, prev.energy.value + 5) },
+      energy: { ...prev.energy, value: Math.min(prev.energy.max, prev.energy.value + 3) },
     }))
   }
 

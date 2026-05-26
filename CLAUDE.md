@@ -139,7 +139,7 @@ Poop generation:
 Cleanliness decay multiplier: 0 poops = ×1.0, 1 = ×1.5, 2 = ×2.25, 3 = ×3.375
 
 Reward/penalty:
-- Correct: +1 coin (0 when `jimmySleeping`), +5 energy
+- Correct: +1 coin (0 when `jimmySleeping`), +3 energy
 - Wrong: −3 energy
 
 `mood` derived from average of energy/hunger/cleanliness: `"happy"` > 60, `"okay"` > 30, `"sad"` otherwise. If `hunger.value === 0`, mood is forced to `"sad"`.
