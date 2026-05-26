@@ -143,11 +143,11 @@ function ShovelIndicator({ stats }) {
 }
 
 const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [], onPoopTap }, ref) {
-  const jimmySleeping = stats.energy.value === 0
-  const sluggish = stats.hunger.value === 0
+  const jimmySleeping = stats.energy.value <= 25
+  const sluggish = stats.hunger.value <= 25
   const grubby = stats.cleanliness.value === 0
 
-  const anim = useJimmyAnimation(sluggish)
+  const anim = useJimmyAnimation(sluggish, jimmySleeping)
 
   // Sleep overrides all animation; poseProp overrides normal animation (e.g. summary screen)
   const activePose = jimmySleeping ? 'sleep' : (poseProp ?? anim.pose)
@@ -197,15 +197,25 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
           src={src}
           alt={`Jimmy the giraffe (${mood})`}
           onError={e => { e.currentTarget.src = FALLBACK }}
-          className={`absolute bottom-8 object-contain object-bottom${jimmySleeping ? ' animate-pulse' : ''}`}
-          style={{
+          className={`absolute object-contain object-bottom${jimmySleeping ? ' animate-pulse' : ''}`}
+          style={jimmySleeping ? {
+            width: '95px',
+            height: '140px',
+            bottom: '0px',
+            left: `${anim.x}%`,
+            transform: 'translateX(-50%)',
+            transition: 'none',
+            zIndex: 2,
+            filter: grubby ? 'sepia(0.9) hue-rotate(60deg) brightness(0.7) saturate(1.8)' : undefined,
+          } : {
             width: '80px',
             height: '96px',
+            bottom: '32px',
             left: `${anim.x}%`,
             transform: `translateX(-50%) ${anim.direction === 'right' ? 'scaleX(-1)' : ''}`,
             transition: 'left 0.4s linear',
             zIndex: 2,
-            filter: grubby ? 'sepia(0.4) brightness(0.85)' : undefined,
+            filter: grubby ? 'sepia(0.9) hue-rotate(60deg) brightness(0.7) saturate(1.8)' : undefined,
           }}
         />
       </div>

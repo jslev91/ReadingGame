@@ -4,10 +4,15 @@ import { getItem as getStorageItem, setItem } from '../services/storage'
 
 const STORAGE_KEY = 'petState'
 
+// TEST_MODE: set to true to compress all timings by 60× (minutes → seconds).
+// Revert to false before committing. To re-enable: flip this flag and reset pet state.
+const TEST_MODE = false
+const T = TEST_MODE ? 300 : 1  // time compression factor
+
 const DECAY = {
-  energy:      { intervalMs: 5  * 60 * 1000, rate: 1 },
-  hunger:      { intervalMs: 8  * 60 * 1000, rate: 1 },
-  cleanliness: { intervalMs: 20 * 60 * 1000, rate: 1 },
+  energy:      { intervalMs: 5  * 60 * 1000 / T, rate: 1 },
+  hunger:      { intervalMs: 8  * 60 * 1000 / T, rate: 1 },
+  cleanliness: { intervalMs: 20 * 60 * 1000 / T, rate: 1 },
 }
 
 const DEFAULTS = {
@@ -23,10 +28,10 @@ const DEFAULTS = {
 }
 
 function randomPoopDelay(fast = false) {
-  // 22–45 min when cleanliness is 0, else 45–90 min
+  // 22–45 min when cleanliness is 0, else 45–90 min (compressed by T in test mode)
   const min = fast ? 22 : 45
   const range = fast ? 24 : 46
-  return (min + Math.floor(Math.random() * range)) * 60 * 1000
+  return (min + Math.floor(Math.random() * range)) * 60 * 1000 / T
 }
 
 function applyDecay(stats) {
@@ -70,7 +75,7 @@ function applyDecay(stats) {
     const ratePerMs = activeItems.reduce((sum, inst) => {
       const def = getItem(inst.itemId)
       if (def?.effect?.stat !== 'hunger') return sum
-      return sum + def.effect.ratePerMinute / 60000
+      return sum + def.effect.ratePerMinute * T / 60000
     }, 0)
     hungerDelta = Math.floor(elapsed * ratePerMs)
   } else {
@@ -84,7 +89,7 @@ function applyDecay(stats) {
     const ratePerMs = activeItems.reduce((sum, inst) => {
       const def = getItem(inst.itemId)
       if (def?.effect?.stat !== 'cleanliness') return sum
-      return sum + def.effect.ratePerMinute / 60000
+      return sum + def.effect.ratePerMinute * T / 60000
     }, 0)
     cleanlinessDelta = Math.floor(elapsed * ratePerMs)
   } else {
@@ -298,7 +303,7 @@ export function usePet(userId) {
   return {
     stats,
     mood: deriveMood(stats),
-    jimmySleeping: stats.energy.value === 0,
+    jimmySleeping: stats.energy.value <= 25,
     onCorrect,
     onWrong,
     canAfford,

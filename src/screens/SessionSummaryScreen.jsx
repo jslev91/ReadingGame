@@ -18,7 +18,7 @@ export default function SessionSummaryScreen({ result, stats, mood, onPlayAgain,
   return (
     <div className="min-h-screen bg-yellow-50 flex flex-col items-center justify-center gap-8 p-6">
       <div className="w-full max-w-sm">
-        <Jimmy stats={stats} mood={mood} pose={getSummaryPose(correct)} />
+        <Jimmy stats={stats} mood={mood} pose={getSummaryPose(correct)} poops={stats.poops ?? []} />
       </div>
 
       <div className="flex flex-col items-center gap-4 text-center">

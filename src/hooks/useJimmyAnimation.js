@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 
 const TICK_MS = 400
 
-export function useJimmyAnimation(sluggish = false) {
+export function useJimmyAnimation(sluggish = false, sleeping = false) {
   const [pose, setPose]           = useState('idle')
   const [direction, setDirection] = useState('right')
   const [x, setX]                 = useState(10)
@@ -15,6 +15,9 @@ export function useJimmyAnimation(sluggish = false) {
   const sluggishRef = useRef(sluggish)
   useEffect(() => { sluggishRef.current = sluggish }, [sluggish])
 
+  const sleepingRef = useRef(sleeping)
+  useEffect(() => { sleepingRef.current = sleeping }, [sleeping])
+
   const reactionTimerRef = useRef(null)
 
   useEffect(() => {
@@ -24,10 +27,10 @@ export function useJimmyAnimation(sluggish = false) {
       const { mode, direction, x } = stateRef.current
       const isSluggy = sluggishRef.current
 
-      if (mode !== 'wandering') return
+      if (sleepingRef.current || mode !== 'wandering') return
 
       // Chance to rest: 1-in-5 when sluggish, else 1-in-25
-      const restChance = isSluggy ? 1 / 5 : 1 / 25
+      const restChance = isSluggy ? 1 / 2 : 1 / 25
       if (Math.random() < restChance) {
         setPose('idle')
         setMode('resting')
