@@ -98,6 +98,16 @@ function PoopItem({ poop, onTap }) {
 // Exposes react(pose) via ref so GameScreen can trigger reactions without managing
 // animation state itself. Using forwardRef + useImperativeHandle keeps the animation
 // hook internal and the component interface minimal.
+function ShovelIndicator({ stats }) {
+  const tool = (stats.inventory?.tools ?? []).find(t => t.id === 'shovel')
+  if (!tool) return null
+  const uses = tool.usesRemaining
+  const colour = uses <= 1 ? 'text-red-600' : uses <= 3 ? 'text-amber-500' : 'text-yellow-800'
+  return (
+    <span className={`text-sm font-bold ${colour}`}>🪣 {uses}</span>
+  )
+}
+
 const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [], onPoopTap }, ref) {
   const anim = useJimmyAnimation()
 
@@ -130,9 +140,12 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
           <PoopItem key={poop.id} poop={poop} onTap={onPoopTap ?? (() => {})} />
         ))}
 
-        {/* Coin counter */}
-        <div className="absolute top-2 right-3 text-sm font-bold text-yellow-800 bg-yellow-100/80 rounded-full px-2 py-0.5">
-          🪙 {stats.coins}
+        {/* Coin counter + shovel uses */}
+        <div className="absolute top-2 right-3 flex gap-2 items-center">
+          <ShovelIndicator stats={stats} />
+          <div className="text-sm font-bold text-yellow-800 bg-yellow-100/80 rounded-full px-2 py-0.5">
+            🪙 {stats.coins}
+          </div>
         </div>
 
         {/* Jimmy sprite */}

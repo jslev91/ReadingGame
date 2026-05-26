@@ -23,7 +23,7 @@ export default function GameScreen({ onHome, onSessionComplete }) {
   function handlePoopTap(poopId) {
     const poop = pet.stats.poops.find(p => p.id === poopId)
     const x = poop?.x ?? 50
-    if (pet.stats.inventory.tools.includes('shovel')) {
+    if (pet.hasTool('shovel')) {
       pet.removePoop(poopId)
       setPoopToast({ message: '✨ Clean!', x })
     } else {

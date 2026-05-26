@@ -129,10 +129,16 @@ export function usePet(userId) {
 
   const [stats, setStats] = useState(() => {
     const raw = getStorageItem(userId, STORAGE_KEY) ?? {}
+    const rawInv = raw.inventory ?? {}
+    // Migrate tools from legacy string array to object array
+    const rawTools = rawInv.tools ?? []
+    const tools = rawTools.map(t =>
+      typeof t === 'string' ? { id: t, usesRemaining: 10 } : t
+    )
     const saved = {
       ...DEFAULTS,
       ...raw,
-      inventory: { ...DEFAULTS.inventory, ...(raw.inventory ?? {}) },
+      inventory: { ...DEFAULTS.inventory, ...rawInv, tools },
     }
     savedRef.current = saved
     return applyDecay(saved)
@@ -207,6 +213,15 @@ export function usePet(userId) {
     return def ? stats.coins >= def.cost : false
   }
 
+  function hasTool(id) {
+    return (stats.inventory.tools ?? []).some(t => t.id === id)
+  }
+
+  function getToolUses(id) {
+    const tool = (stats.inventory.tools ?? []).find(t => t.id === id)
+    return tool ? tool.usesRemaining : null
+  }
+
   function canPurchase(itemId) {
     const def = getItem(itemId)
     if (!def) return { canBuy: false, reason: 'unknown_item' }
@@ -216,8 +231,9 @@ export function usePet(userId) {
       const activeCount = stats.activeItems.filter(i => i.itemId === itemId).length
       if (activeCount >= def.maxActive) return { canBuy: false, reason: 'already_active' }
     }
-    if (def.type === 'tool' && stats.inventory.tools.includes(itemId)) {
-      return { canBuy: false, reason: 'already_owned' }
+    if (def.type === 'tool') {
+      const tool = (stats.inventory.tools ?? []).find(t => t.id === itemId)
+      if (tool && tool.usesRemaining > 0) return { canBuy: false, reason: 'already_owned' }
     }
     if (def.type === 'cosmetic') {
       const activeCount = stats.activeItems.filter(i => i.itemId === itemId).length
@@ -247,7 +263,11 @@ export function usePet(userId) {
           },
         ]
       } else if (def.type === 'tool') {
-        next.inventory = { ...prev.inventory, tools: [...prev.inventory.tools, itemId] }
+        const existing = (prev.inventory.tools ?? []).filter(t => t.id !== itemId)
+        next.inventory = {
+          ...prev.inventory,
+          tools: [...existing, { id: itemId, usesRemaining: def.maxUses ?? 10 }],
+        }
       }
       return next
     })
@@ -255,14 +275,20 @@ export function usePet(userId) {
   }
 
   function removePoop(poopId) {
-    save(prev => ({
-      ...prev,
-      poops: prev.poops.filter(p => p.id !== poopId),
-      cleanliness: {
-        ...prev.cleanliness,
-        value: Math.min(prev.cleanliness.max, prev.cleanliness.value + 5),
-      },
-    }))
+    save(prev => {
+      const tools = (prev.inventory.tools ?? []).map(t =>
+        t.id === 'shovel' ? { ...t, usesRemaining: t.usesRemaining - 1 } : t
+      ).filter(t => t.usesRemaining > 0)
+      return {
+        ...prev,
+        poops: prev.poops.filter(p => p.id !== poopId),
+        cleanliness: {
+          ...prev.cleanliness,
+          value: Math.min(prev.cleanliness.max, prev.cleanliness.value + 5),
+        },
+        inventory: { ...prev.inventory, tools },
+      }
+    })
   }
 
   return {
@@ -274,5 +300,7 @@ export function usePet(userId) {
     canPurchase,
     purchaseItem,
     removePoop,
+    hasTool,
+    getToolUses,
   }
 }

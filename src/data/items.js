@@ -41,6 +41,7 @@ export const ITEMS = [
     emoji: '🪣',
     effect: null,
     maxActive: 1,
+    maxUses: 10,
     consumedOnUse: false,
   },
   {
