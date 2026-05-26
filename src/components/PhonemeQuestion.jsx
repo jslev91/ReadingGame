@@ -69,13 +69,14 @@ export default function PhonemeQuestion({ entry, distractors, onCorrect, onWrong
         <span className="text-lg font-bold text-yellow-700">Tap to hear the sound</span>
       </button>
 
-      <div className="flex gap-3 w-full px-2">
+      <div className="flex flex-wrap gap-3 w-full px-2">
         {options.map((option, i) => (
           <button
             key={i}
             onClick={() => handleTap(option)}
             disabled={answered || locked}
             className={buttonClass(option)}
+            style={options.length >= 5 ? { flexBasis: 'calc(33% - 0.5rem)' } : undefined}
             aria-label={option.grapheme}
           >
             {option.grapheme}

@@ -25,27 +25,70 @@ const PHONEME_ALIASES = {
   'z': ['zz'], 'zz': ['z'],
 }
 
+// Phonetically confusable pairs — preferred as distractors when introduced
+const CONFUSABLE_PAIRS = {
+  'b':        ['d', 'p'],
+  'd':        ['b', 'g'],
+  'p':        ['b', 't'],
+  'm':        ['n'],
+  'n':        ['m'],
+  'f':        ['v', 'th'],
+  'v':        ['f'],
+  's':        ['z', 'c'],
+  'z':        ['s'],
+  'sh':       ['ch', 's'],
+  'ch':       ['sh', 'j'],
+  'th':       ['f', 'v', 's'],
+  'j':        ['ch', 'g'],
+  'ai':       ['ee', 'oa'],
+  'ee':       ['ai', 'ea'],
+  'igh':      ['i', 'ie'],
+  'oa':       ['ow', 'o'],
+  'oo_long':  ['oo_short', 'oa'],
+  'oo_short': ['oo_long', 'u'],
+  'ar':       ['or', 'er'],
+  'or':       ['ar', 'aw'],
+  'er':       ['ar', 'ir'],
+  'ow':       ['oa', 'ou'],
+  'oi':       ['oy', 'ow'],
+  'ear':      ['air', 'er'],
+  'air':      ['ear', 'ar'],
+}
+
+// Use audioKey as the lookup key for 'oo' since both entries share grapheme 'oo'
+function entryKey(entry) {
+  return entry.grapheme === 'oo' ? entry.audioKey : entry.grapheme
+}
+
 function isAmbiguous(grapheme, correct) {
   return (PHONEME_ALIASES[correct.grapheme] ?? []).includes(grapheme)
 }
 
-function pickDistractors(correct, progressMap) {
+function pickDistractors(correct, progressMap, count = 2) {
+  const correctKey = entryKey(correct)
+  const confusableKeys = CONFUSABLE_PAIRS[correctKey] ?? []
+
+  // All introduced candidates (use reference equality so oo variants can distract each other)
   const introduced = phonics.filter(p =>
-    p.grapheme !== correct.grapheme &&
+    p !== correct &&
     !isAmbiguous(p.grapheme, correct) &&
     ['introduced', 'practising', 'mastered'].includes(getStatus(progressMap, p.grapheme))
   )
 
-  const selected = [...introduced].sort(() => Math.random() - 0.5).slice(0, 2)
+  // Prefer confusable entries; fill remainder from non-confusable
+  const confusable    = introduced.filter(p =>  confusableKeys.includes(entryKey(p))).sort(() => Math.random() - 0.5)
+  const nonConfusable = introduced.filter(p => !confusableKeys.includes(entryKey(p))).sort(() => Math.random() - 0.5)
 
-  // Fill remaining slots from Phase 2 in order if not enough introduced graphemes
-  if (selected.length < 2) {
+  const selected = [...confusable, ...nonConfusable].slice(0, count)
+
+  // Fill remaining slots from Phase 2 in order if still not enough
+  if (selected.length < count) {
     const fallbacks = phase2.filter(
-      p => p.grapheme !== correct.grapheme &&
+      p => p !== correct &&
         !isAmbiguous(p.grapheme, correct) &&
-        !selected.find(s => s.grapheme === p.grapheme)
+        !selected.includes(p)
     )
-    while (selected.length < 2 && fallbacks.length > 0) {
+    while (selected.length < count && fallbacks.length > 0) {
       selected.push(fallbacks.shift())
     }
   }
@@ -77,6 +120,14 @@ function canIntroduceNew(progressMap) {
   return status === 'practising' || status === 'mastered'
 }
 
+// 3 options for introduced, 4 for practising, 5 for mastered
+function getOptionCount(progressMap, entry) {
+  const status = getStatus(progressMap, entry.grapheme)
+  if (status === 'mastered') return 5
+  if (status === 'practising') return 4
+  return 3
+}
+
 export function selectNextQuestion(progressMap) {
   const phase2PractisingOrMastered = countByStatus(progressMap, ['practising', 'mastered'], 2)
   const allowPhase3 = phase2PractisingOrMastered >= 6
@@ -89,22 +140,26 @@ export function selectNextQuestion(progressMap) {
   const masteredCandidates = phonics.filter(p => getStatus(progressMap, p.grapheme) === 'mastered')
   if (masteredCandidates.length > 0 && Math.random() < 0.1) {
     const entry = pickRandom(masteredCandidates)
-    return { entry, distractors: pickDistractors(entry, progressMap), isNew: false }
+    const optionCount = getOptionCount(progressMap, entry)
+    return { entry, distractors: pickDistractors(entry, progressMap, optionCount - 1), isNew: false, optionCount }
   }
 
   // Prefer reviewing existing graphemes unless conditions allow a new introduction
   if (reviewCandidates.length > 0 && !canIntroduceNew(progressMap)) {
     const entry = pickRandom(reviewCandidates)
-    return { entry, distractors: pickDistractors(entry, progressMap), isNew: false }
+    const optionCount = getOptionCount(progressMap, entry)
+    return { entry, distractors: pickDistractors(entry, progressMap, optionCount - 1), isNew: false, optionCount }
   }
 
   // Introduce next unseen grapheme
   const nextUnseen = getNextUnseen(progressMap, allowPhase3)
   if (nextUnseen) {
-    return { entry: nextUnseen, distractors: pickDistractors(nextUnseen, progressMap), isNew: true }
+    const optionCount = getOptionCount(progressMap, nextUnseen)
+    return { entry: nextUnseen, distractors: pickDistractors(nextUnseen, progressMap, optionCount - 1), isNew: true, optionCount }
   }
 
   // All graphemes introduced — fall back to review
   const fallback = pickRandom(reviewCandidates.length > 0 ? reviewCandidates : masteredCandidates)
-  return { entry: fallback, distractors: pickDistractors(fallback, progressMap), isNew: false }
+  const optionCount = getOptionCount(progressMap, fallback)
+  return { entry: fallback, distractors: pickDistractors(fallback, progressMap, optionCount - 1), isNew: false, optionCount }
 }
