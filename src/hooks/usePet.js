@@ -10,9 +10,9 @@ const TEST_MODE = false
 const T = TEST_MODE ? 300 : 1  // time compression factor
 
 const DECAY = {
-  energy:      { intervalMs: 5  * 60 * 1000 / T, rate: 1 },
-  hunger:      { intervalMs: 8  * 60 * 1000 / T, rate: 1 },
-  cleanliness: { intervalMs: 20 * 60 * 1000 / T, rate: 1 },
+  energy:      { intervalMs: 5  * 60 * 1000 / T },
+  hunger:      { intervalMs: 8  * 60 * 1000 / T },
+  cleanliness: { intervalMs: 20 * 60 * 1000 / T },
 }
 
 const DEFAULTS = {
@@ -21,6 +21,9 @@ const DEFAULTS = {
   cleanliness: { value: 90, max: 100 },
   coins: 0,
   lastDecayTimestamp: null,
+  // Sub-integer remainders carried forward across ticks so slow stats
+  // accumulate correctly even when faster stats reset the timestamp.
+  pendingDecay: { energy: 0, hunger: 0, cleanliness: 0 },
   activeItems: [],
   inventory: { tools: [], cosmetics: [] },
   poops: [],
@@ -53,50 +56,66 @@ function applyDecay(stats) {
         { id: uuid(), x: 5 + Math.floor(Math.random() * 81), placedAt: new Date(now).toISOString() },
       ]
     }
-    // Always advance nextPoopAt whether or not a poop was placed
     nextPoopAt = new Date(now + randomPoopDelay(dirtyHabitat)).toISOString()
   }
 
   if (!stats.lastDecayTimestamp) {
-    return { ...stats, poops, nextPoopAt }
+    return {
+      ...stats, poops, nextPoopAt,
+      lastDecayTimestamp: new Date(now).toISOString(),
+      pendingDecay: { energy: 0, hunger: 0, cleanliness: 0 },
+    }
   }
 
   const elapsed = now - new Date(stats.lastDecayTimestamp).getTime()
+  const pending = stats.pendingDecay ?? { energy: 0, hunger: 0, cleanliness: 0 }
 
   // Remove expired active items
   const activeItems = (stats.activeItems ?? []).filter(
     inst => new Date(inst.expiresAt).getTime() > now
   )
 
+  // Energy (always decays) — accumulate fractional remainder
+  const rawEnergy = pending.energy + elapsed / DECAY.energy.intervalMs
+  const energyDecrement = Math.floor(rawEnergy)
+  const pendingEnergy = rawEnergy - energyDecrement
+
   // Hunger: food active → gain, else → decay
   const foodActive = activeItems.some(inst => getItem(inst.itemId)?.effect?.stat === 'hunger')
-  let hungerDelta
+  let hungerDelta, pendingHunger
   if (foodActive) {
     const ratePerMs = activeItems.reduce((sum, inst) => {
       const def = getItem(inst.itemId)
       if (def?.effect?.stat !== 'hunger') return sum
       return sum + def.effect.ratePerMinute * T / 60000
     }, 0)
-    hungerDelta = Math.floor(elapsed * ratePerMs)
+    const rawGain = (pending.hunger ?? 0) + elapsed * ratePerMs
+    hungerDelta = Math.floor(rawGain)
+    pendingHunger = rawGain - hungerDelta
   } else {
-    hungerDelta = -Math.floor(elapsed / DECAY.hunger.intervalMs)
+    const rawLoss = (pending.hunger ?? 0) + elapsed / DECAY.hunger.intervalMs
+    hungerDelta = -Math.floor(rawLoss)
+    pendingHunger = rawLoss - Math.floor(rawLoss)
   }
 
   // Cleanliness: bath active → gain; poop present → faster decay
   const bathActive = activeItems.some(inst => getItem(inst.itemId)?.effect?.stat === 'cleanliness')
-  let cleanlinessDelta
+  let cleanlinessDelta, pendingCleanliness
   if (bathActive) {
     const ratePerMs = activeItems.reduce((sum, inst) => {
       const def = getItem(inst.itemId)
       if (def?.effect?.stat !== 'cleanliness') return sum
       return sum + def.effect.ratePerMinute * T / 60000
     }, 0)
-    cleanlinessDelta = Math.floor(elapsed * ratePerMs)
+    const rawGain = (pending.cleanliness ?? 0) + elapsed * ratePerMs
+    cleanlinessDelta = Math.floor(rawGain)
+    pendingCleanliness = rawGain - cleanlinessDelta
   } else {
-    // Each poop multiplies decay by ×1.5 (stackable)
     const multiplier = Math.pow(1.5, poops.length)
     const effectiveIntervalMs = DECAY.cleanliness.intervalMs / multiplier
-    cleanlinessDelta = -Math.floor(elapsed / effectiveIntervalMs)
+    const rawLoss = (pending.cleanliness ?? 0) + elapsed / effectiveIntervalMs
+    cleanlinessDelta = -Math.floor(rawLoss)
+    pendingCleanliness = rawLoss - Math.floor(rawLoss)
   }
 
   return {
@@ -104,9 +123,11 @@ function applyDecay(stats) {
     activeItems,
     poops,
     nextPoopAt,
+    lastDecayTimestamp: new Date(now).toISOString(),
+    pendingDecay: { energy: pendingEnergy, hunger: pendingHunger, cleanliness: pendingCleanliness },
     energy: {
       ...stats.energy,
-      value: Math.max(0, stats.energy.value - Math.floor(elapsed / DECAY.energy.intervalMs)),
+      value: Math.max(0, stats.energy.value - energyDecrement),
     },
     hunger: {
       ...stats.hunger,
@@ -132,14 +153,11 @@ function uuid() {
 }
 
 export function usePet(userId) {
-  // Remember what was in storage before applyDecay ran, so the mount effect
-  // can detect whether a poop was generated and needs immediate persistence.
   const savedRef = useRef(null)
 
   const [stats, setStats] = useState(() => {
     const raw = getStorageItem(userId, STORAGE_KEY) ?? {}
     const rawInv = raw.inventory ?? {}
-    // Migrate tools from legacy string array to object array
     const rawTools = rawInv.tools ?? []
     const tools = rawTools.map(t =>
       typeof t === 'string' ? { id: t, usesRemaining: 10 } : t
@@ -153,25 +171,25 @@ export function usePet(userId) {
     return applyDecay(saved)
   })
 
-  // If applyDecay generated a poop or advanced nextPoopAt on mount, persist it
-  // immediately. Without this, the poop only reaches localStorage when the tick
-  // detects a numeric stat change — which never happens if all stats are at 0.
+  // Persist immediately if applyDecay generated a poop on mount.
   useEffect(() => {
     const saved = savedRef.current
     if (
       stats.poops.length !== (saved.poops?.length ?? 0) ||
       stats.nextPoopAt !== saved.nextPoopAt
     ) {
-      setItem(userId, STORAGE_KEY, { ...stats, lastDecayTimestamp: new Date().toISOString() })
+      setItem(userId, STORAGE_KEY, stats)
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Live tick: check for expired items, new poops, and accumulated stat changes.
+  // Live tick: always apply decay and persist so fractional remainders are
+  // never lost. Only trigger a re-render when visible stat values change.
   useEffect(() => {
     const id = setInterval(() => {
       setStats(prev => {
         const next = applyDecay(prev)
-        const changed = (
+        setItem(userId, STORAGE_KEY, next)
+        const visibleChanged = (
           next.activeItems.length    !== prev.activeItems.length  ||
           next.poops.length          !== prev.poops.length        ||
           next.nextPoopAt            !== prev.nextPoopAt          ||
@@ -179,20 +197,13 @@ export function usePet(userId) {
           next.hunger.value          !== prev.hunger.value        ||
           next.cleanliness.value     !== prev.cleanliness.value
         )
-        if (changed) {
-          const withTs = { ...next, lastDecayTimestamp: new Date().toISOString() }
-          setItem(userId, STORAGE_KEY, withTs)
-          return withTs
-        }
-        return prev
+        return visibleChanged ? next : prev
       })
     }, 10000)
     return () => clearInterval(id)
   }, [userId])
 
-  // Use functional updates in save so it always reads the latest state rather than
-  // a potentially stale closure value. This prevents onCorrect/onWrong from
-  // overwriting a poop that the tick just added to state.
+  // Generic save for shop/poop actions — updates lastDecayTimestamp.
   function save(updater) {
     setStats(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
@@ -202,10 +213,8 @@ export function usePet(userId) {
     })
   }
 
-  // Persist coins/energy changes without resetting lastDecayTimestamp so the
-  // tick's elapsed accumulator isn't disrupted — food/bath gains need ~2 min
-  // of uninterrupted elapsed time to register, and frequent answer saves were
-  // resetting the clock before they could.
+  // Reward save: preserves lastDecayTimestamp and pendingDecay so the
+  // fractional accumulation is not disrupted by frequent correct/wrong answers.
   function saveReward(updater) {
     setStats(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
