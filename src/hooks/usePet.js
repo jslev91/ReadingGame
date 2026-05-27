@@ -202,8 +202,20 @@ export function usePet(userId) {
     })
   }
 
+  // Persist coins/energy changes without resetting lastDecayTimestamp so the
+  // tick's elapsed accumulator isn't disrupted — food/bath gains need ~2 min
+  // of uninterrupted elapsed time to register, and frequent answer saves were
+  // resetting the clock before they could.
+  function saveReward(updater) {
+    setStats(prev => {
+      const next = typeof updater === 'function' ? updater(prev) : updater
+      setItem(userId, STORAGE_KEY, next)
+      return next
+    })
+  }
+
   function onCorrect(coinReward = 1) {
-    save(prev => ({
+    saveReward(prev => ({
       ...prev,
       coins: prev.coins + coinReward,
       energy: { ...prev.energy, value: Math.min(prev.energy.max, prev.energy.value + 3) },
@@ -211,7 +223,7 @@ export function usePet(userId) {
   }
 
   function onWrong() {
-    save(prev => ({
+    saveReward(prev => ({
       ...prev,
       energy: { ...prev.energy, value: Math.max(0, prev.energy.value - 3) },
     }))

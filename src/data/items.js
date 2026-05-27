@@ -55,7 +55,7 @@ export const ITEMS = [
     effect: { duration: 4 * 24 * 60 },
     maxActive: 1,
     consumedOnUse: false,
-    overlayStyle: { top: '2%', left: '8%', width: '32%' },
+    overlayStyle: { top: '-18%', left: '15%', width: '45%' },
   },
   {
     id: 'scarf',

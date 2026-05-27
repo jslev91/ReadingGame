@@ -63,7 +63,10 @@ function StatBar({ emoji, value, max, colour, direction }) {
   const pct = Math.round((value / max) * 100)
   return (
     <div className="flex-1">
-      <span className="text-xs">{emoji}{DIRECTION_ARROW[direction]}</span>
+      <div className="flex justify-between items-baseline">
+        <span className="text-xs">{emoji}{DIRECTION_ARROW[direction]}</span>
+        <span className="text-xs text-gray-400">{value}</span>
+      </div>
       <div className="h-2 rounded-full bg-gray-200 mt-0.5">
         <div
           className={`h-2 rounded-full ${colour} transition-all`}
