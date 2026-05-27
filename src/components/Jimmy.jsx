@@ -173,8 +173,8 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
         <div className="absolute inset-0 bg-sky-300" />
         <div className="absolute bottom-0 left-0 right-0 h-12 bg-green-500" />
 
-        {/* Placed items — behind Jimmy */}
-        {activeItems.map(inst => (
+        {/* Placed items — behind Jimmy (cosmetics render as sprite overlays, not here) */}
+        {activeItems.filter(inst => getItem(inst.itemId)?.type !== 'cosmetic').map(inst => (
           <HabitatItem key={inst.instanceId} instance={inst} />
         ))}
 
