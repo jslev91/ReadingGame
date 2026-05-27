@@ -4,6 +4,7 @@
 import { useEffect, useState, useMemo, useRef } from 'react'
 import phonics from '../data/phonics'
 import { speak } from '../services/tts'
+import { PHONEME_ALIASES } from '../services/questionSelector'
 
 const phase2 = phonics.filter(p => p.phase === 2)
 
@@ -44,7 +45,12 @@ function speakSpelling(wordEntry) {
 
 function pickGraphemeDistractors(wordEntry) {
   const wordGraphemes = new Set(wordEntry.graphemes)
-  const candidates = phase2.filter(p => !wordGraphemes.has(p.grapheme))
+  // Also exclude phoneme aliases (e.g. if word has 'f', exclude 'ff')
+  const excluded = new Set(wordGraphemes)
+  for (const g of wordGraphemes) {
+    for (const alias of (PHONEME_ALIASES[g] ?? [])) excluded.add(alias)
+  }
+  const candidates = phase2.filter(p => !excluded.has(p.grapheme))
   const shuffled = [...candidates].sort(() => Math.random() - 0.5)
   return shuffled.slice(0, 2).map(p => p.grapheme)
 }
@@ -118,10 +124,10 @@ export default function SpellingQuestion({ wordEntry, onCorrect, onWrong, locked
         if (correctBtn) newFlash[correctBtn.id] = 'correct'
         setFlashIds(newFlash)
 
-        // Mark both as used
-        const toUse = new Set([...usedIds, button.id])
-        if (correctBtn) toUse.add(correctBtn.id)
-        setUsedIds(toUse)
+        // Only mark the wrong button as used — not the correct one. Marking
+        // both could exhaust all buttons before the last position is reached,
+        // leaving the user with nothing to tap.
+        setUsedIds(new Set([...usedIds, button.id]))
 
         // Clear flash after 800ms
         setTimeout(() => setFlashIds({}), 800)

@@ -17,7 +17,7 @@ function pickRandom(arr) {
 }
 
 // Graphemes that make the same phoneme — never use as distractors for each other
-const PHONEME_ALIASES = {
+export const PHONEME_ALIASES = {
   'c': ['k', 'ck'], 'k': ['c', 'ck'], 'ck': ['c', 'k'],
   'f': ['ff'], 'ff': ['f'],
   'l': ['ll'], 'll': ['l'],
