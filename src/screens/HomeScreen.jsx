@@ -100,7 +100,8 @@ export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress
     onDeleteProfile()
   }
 
-  function startLongPress() {
+  function startLongPress(e) {
+    e.preventDefault()
     longPressTimer.current = setTimeout(() => setParentOpen(true), 800)
   }
 
@@ -176,7 +177,9 @@ export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress
         onPointerDown={startLongPress}
         onPointerUp={cancelLongPress}
         onPointerLeave={cancelLongPress}
+        onContextMenu={e => e.preventDefault()}
         className="absolute bottom-4 left-4 text-gray-300 text-xl px-2 py-1 rounded select-none"
+        style={{ touchAction: 'none' }}
         aria-label="Parent settings (hold)"
       >
         ⚙️
