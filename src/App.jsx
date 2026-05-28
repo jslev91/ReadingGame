@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { getGlobal } from './services/storage'
+import TestModeSplash from './components/TestModeSplash'
 import ProfileSelectScreen from './screens/ProfileSelectScreen'
 import HomeScreen from './screens/HomeScreen'
 import GameScreen from './screens/GameScreen'
 import SessionSummaryScreen from './screens/SessionSummaryScreen'
 import ShopScreen from './screens/ShopScreen'
 import ProgressScreen from './screens/ProgressScreen'
+
+const TEST_MODE = new URLSearchParams(window.location.search).get('testMode') === '1'
 
 function loadActiveProfile() {
   const id = getGlobal('activeProfile')
@@ -18,6 +21,11 @@ export default function App() {
   const [profile, setProfile] = useState(() => loadActiveProfile())
   const [screen, setScreen] = useState('home')
   const [sessionResult, setSessionResult] = useState(null)
+  const [testSplashDone, setTestSplashDone] = useState(false)
+
+  if (TEST_MODE && !testSplashDone) {
+    return <TestModeSplash onContinue={() => setTestSplashDone(true)} />
+  }
 
   if (!profile) {
     return <ProfileSelectScreen onSelect={p => { setProfile(p); setScreen('home') }} />
