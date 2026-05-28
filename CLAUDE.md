@@ -41,7 +41,7 @@ Wrapper around localStorage that always namespaces reads and writes by `userId` 
 ### `src/services/questionSelector.js`
 Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next using these rules (in priority order):
 1. Work through Phase 2 graphemes in Letters and Sounds order; don't start Phase 3 until 6 Phase 2 graphemes are `practising` or `mastered`
-2. A new grapheme is introduced only when the most recently seen non-unseen grapheme has reached `practising` (3 correct answers) — this naturally paces introductions without a hard per-session cap
+2. A new grapheme is introduced only when **zero** `introduced` graphemes remain — every seen grapheme must have consolidated to `practising` or `mastered` first. This prevents the child from accumulating an overwhelming backlog of new sounds.
 3. After introducing a new grapheme, interleave it with review of `introduced` and `practising` graphemes
 4. `mastered` graphemes appear ~1 in 10 questions as maintenance review
 5. Distractors prefer phonetically confusable graphemes (`CONFUSABLE_PAIRS` map) when introduced; fall back to random introduced graphemes, then Phase 2 fills remaining slots
@@ -144,10 +144,12 @@ Persisted under `jimmy:{userId}:petState`. State shape:
 }
 ```
 Decay and effects (applied on mount and via 10s live tick):
-- Energy: −1 per 5 minutes
-- Hunger: −1 per 8 min (no food); +ratePerMinute while food active (food: 2/min, 30 min)
-- Cleanliness: −1 per 20 min baseline × poop multiplier (×1.5 per poop, stackable); +ratePerMinute while bath active (0.6/min, 20 min)
+- Energy: −70 pts per 24 h (≈ −1 per 20.6 min)
+- Hunger: −50 pts per 24 h (≈ −1 per 28.8 min, no food); +ratePerMinute while food active (food: 2/min, 30 min)
+- Cleanliness: −20 pts per 24 h baseline (≈ −1 per 72 min) × poop multiplier (×1.5 per poop, stackable); +ratePerMinute while bath active (0.6/min, 20 min)
 - Expired `activeItems` pruned each tick
+
+Implemented as `DAY_MS / pts_per_day / T` interval per point, where `T` is the time-compression factor (1 in production, higher in test mode).
 
 **Fractional accumulation:** `pendingDecay` carries sub-integer remainders forward across ticks so slow stats (cleanliness, hunger) accumulate correctly even when faster stats (energy) reset the timestamp. `applyDecay` always updates `lastDecayTimestamp`. The tick always persists state but only re-renders when visible values change.
 
@@ -351,8 +353,9 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`
 - **Session 5:** New sprites (happy, sad, 6-frame walk cycle); items.js catalogue; usePet extended with activeItems/inventory/purchaseItem; habitat renders placed items with expiry fade; ShopScreen; shop button on HomeScreen; fixed summary screen showing stale stats (stats/mood now passed through onSessionComplete)
 - **Session 6:** Poop generation (45–90 min intervals, max 3, random x); cleanliness decay multiplier per poop (×1.5 stackable); PoopItem with CSS smell animation; poop tap with shovel ownership check + toast; bath activated as placed consumable (0.6/min, 20 min); shovel activated (permanent tool); cosmetics changed to 4-day timed items (not permanent); coin economy rebalanced (cosmetic prices increased)
 - **Session 7:** Shovel durability (10 uses, use count display, legacy migration); stat bar direction arrows (▲▼►); empty-bar consequences (sleep pose, sluggish wander, grubby filter, faster poops, halved coins); confusable distractor engine (CONFUSABLE_PAIRS); dynamic option count (3/4/5 by mastery, flex-wrap buttons); 35 Phase 4 CCVC/CVCC words; SpellingQuestion component; question weights updated to 40/20/20/20; sleep/dirty/hat sprites processed
-- **Session 8:** Cosmetic overlays (hat renders on Jimmy's head, flips with direction, sprite wrapper pattern); `cosmeticSprites.js` service; `overlayStyle` in items.js; hat unlocked, scarf still comingSoon; cosmetics excluded from habitat floor rendering and hidden when sleeping; 26 tricky words in `trickyWords.js`; tricky word progress tracking in `useProgress.js` (separate storage key, unseen→seen→familiar→known); `TrickyWordQuestion` component (1500ms presentation phase); question weights 35/20/15/15/15; `selectNextTrickyWord` exported from useProgress; decay system rebuilt with `pendingDecay` fractional accumulation (all stats now work correctly in real time); food rate 2/min; `introduced` graphemes weighted 70% in question selection; `ProgressScreen` showing all grapheme statuses; spelling bug fixes (alias exclusion from distractors, grapheme-needed-later not consumed on wrong tap); stat bar numeric values; `saveReward` preserves decay timestamp
+- **Session 8:** Cosmetic overlays (hat renders on Jimmy's head, flips with direction, sprite wrapper pattern); `cosmeticSprites.js` service; `overlayStyle` in items.js; hat unlocked, scarf still comingSoon; cosmetics excluded from habitat floor rendering and hidden when sleeping; 26 tricky words in `trickyWords.js`; tricky word progress tracking in `useProgress.js` (separate storage key, unseen→seen→familiar→known); `TrickyWordQuestion` component (1500ms presentation phase); question weights 35/20/15/15/15; `selectNextTrickyWord` exported from useProgress; decay system rebuilt with `pendingDecay` fractional accumulation (all stats now work correctly in real time); food rate 2/min; `introduced` graphemes weighted 70% in question selection; `ProgressScreen` showing all grapheme statuses; spelling bug fixes (alias exclusion from distractors, grapheme-needed-later not consumed on wrong tap); stat bar numeric values; `saveReward` preserves decay timestamp; decay rates rebalanced (energy −70/day, hunger −50/day, cleanliness −20/day); introduction pacing tightened (`canIntroduceNew` now requires zero `introduced` graphemes before unlocking next sound)
 
 ## Coming in session 9
+- **Dev/test environment split:** replace hardcoded `TEST_MODE` flag with a proper env-var or URL-param mechanism so fast timings are available without touching source code.
 - **User profiles:** profile selection screen on launch, create profile flow (name + colour picker), per-profile storage (already keyed by userId). Guest profile stays as migration fallback — on first launch after this session, if guest data exists offer it as a profile to keep. Consider a parent/settings area accessible via long-press on home screen (view progress, reset profile, manage profiles).
 - **Scarf cosmetic:** remove `comingSoon` from scarf in `items.js` once `public/images/cosmetics/scarf.png` is added. Tune `overlayStyle` position with `?cosmeticDebug=1`.
