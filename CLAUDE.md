@@ -21,7 +21,7 @@ src/
   services/    ← tts.js, storage.js, questionSelector.js
   hooks/       ← usePet.js, useProgress.js, useJimmyAnimation.js
   components/  ← Jimmy.jsx, PhonemeQuestion.jsx, InitialSoundQuestion.jsx, BlendingQuestion.jsx, SpellingQuestion.jsx
-  screens/     ← HomeScreen.jsx, GameScreen.jsx, SessionSummaryScreen.jsx
+  screens/     ← HomeScreen.jsx, GameScreen.jsx, SessionSummaryScreen.jsx, ShopScreen.jsx, ProgressScreen.jsx
   context/     ← React contexts (unused so far)
 docs/          ← session briefings and reference material
 ```
@@ -48,6 +48,10 @@ Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next
 6. Same-phoneme graphemes are never used as distractors for each other (`PHONEME_ALIASES`): c/k/ck share /k/, f/ff share /f/, l/ll share /l/, s/ss share /s/, z/zz share /z/
 
 Returns `{ entry, distractors, isNew, optionCount }`. `optionCount` is 3 (introduced), 4 (practising), or 5 (mastered) — distractors array length is always `optionCount - 1`.
+
+**Review weighting:** when both `introduced` and `practising` graphemes are available, `introduced` graphemes are selected 70% of the time (vs 30% for `practising`) so recently-seen sounds get more repetition before the child advances.
+
+Also exports `PHONEME_ALIASES` (used by SpellingQuestion to exclude phoneme aliases from distractors).
 
 ## Data
 
@@ -77,7 +81,7 @@ Data shape per item:
   cost: 3,
   sprite: '/images/items/food.png',
   emoji: '🍃',
-  effect: { stat: 'hunger', ratePerMinute: 0.5, duration: 30 },
+  effect: { stat: 'hunger', ratePerMinute: 2, duration: 30 },
   maxActive: 1,
   consumedOnUse: true,
   comingSoon: true,        // present only on stub items — remove to unlock
@@ -90,7 +94,7 @@ Data shape per item:
 Current catalogue:
 | id | name | cost | active |
 |---|---|---|---|
-| food | Leaves | 8 | ✓ |
+| food | Leaves | 8 | ✓ (placed consumable, 2/min hunger, 30 min) |
 | bath | Bath Time | 10 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
 | shovel | Shovel | 20 | ✓ (tool, 10 uses, enables poop removal; `maxUses: 10`) |
 | hat | Top Hat | 30 | ✓ (4-day timed cosmetic, renders as overlay on sprite) |
@@ -127,6 +131,7 @@ Persisted under `jimmy:{userId}:petState`. State shape:
   cleanliness: { value: 90, max: 100 },
   coins: 0,
   lastDecayTimestamp: <ISO string>,
+  pendingDecay: { energy: 0, hunger: 0, cleanliness: 0 }, // fractional remainders
   activeItems: [
     // { instanceId, itemId, x: 10–80, placedAt: ISO, expiresAt: ISO }
   ],
@@ -140,9 +145,13 @@ Persisted under `jimmy:{userId}:petState`. State shape:
 ```
 Decay and effects (applied on mount and via 10s live tick):
 - Energy: −1 per 5 minutes
-- Hunger: −1 per 8 min (no food); +ratePerMinute while food active
-- Cleanliness: −1 per 20 min baseline × poop multiplier (×1.5 per poop, stackable); +ratePerMinute while bath active
+- Hunger: −1 per 8 min (no food); +ratePerMinute while food active (food: 2/min, 30 min)
+- Cleanliness: −1 per 20 min baseline × poop multiplier (×1.5 per poop, stackable); +ratePerMinute while bath active (0.6/min, 20 min)
 - Expired `activeItems` pruned each tick
+
+**Fractional accumulation:** `pendingDecay` carries sub-integer remainders forward across ticks so slow stats (cleanliness, hunger) accumulate correctly even when faster stats (energy) reset the timestamp. `applyDecay` always updates `lastDecayTimestamp`. The tick always persists state but only re-renders when visible values change.
+
+**`saveReward`** (internal): used by `onCorrect`/`onWrong` — persists without changing `lastDecayTimestamp` or `pendingDecay`, so game answers don't disrupt the accumulation clock.
 
 Poop generation:
 - `nextPoopAt` initialised to 45–90 min from first load (22–45 min when `cleanliness.value === 0`)
@@ -228,11 +237,11 @@ Drop new sprites into `public/images/` and they appear automatically with no cod
 
 Optional `pose` prop overrides animation (used by SessionSummaryScreen for a static pose). `jimmySleeping` (`energy <= 25`) overrides all animation to `sleep` pose with `animate-pulse` class. Sleep sprite is 95×140px at `bottom: 0` (portrait sprite — taller than wide).
 
-Coin counter (🪙) in top-right corner, with shovel use count (🪣 N) beside it — amber at ≤3 uses, red at ≤1, hidden when not owned. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 🛁 Cleanliness (purple), each with a small direction arrow (▲ green = rising, ▼ red = falling, ► grey = stable) computed by `getStatDirection(statName, stats, poops)`.
+Coin counter (🪙) in top-right corner, with shovel use count (🪣 N) beside it — amber at ≤3 uses, red at ≤1, hidden when not owned. Three slim stat bars below: ⚡ Energy (green), 🍃 Hunger (orange), 🛁 Cleanliness (purple), each with a small direction arrow (▲ green = rising, ▼ red = falling, ► grey = stable) computed by `getStatDirection(statName, stats, poops)`. Numeric value shown beside each bar emoji.
 
 💤 badge shown top-left when `energy <= 25`. Sprite receives `filter: 'sepia(0.9) hue-rotate(60deg) brightness(0.7) saturate(1.8)'` (green-tinted sepia) when `cleanliness === 0`.
 
-**Cosmetic overlays:** active cosmetic items (`type === 'cosmetic'` in `stats.activeItems`) are rendered as `<img>` overlays inside a `position: relative; display: inline-block` wrapper around the sprite. The wrapper carries all movement/flip/animation styles (previously on the `<img>` directly), so `scaleX(-1)` direction flip applies to both sprite and overlays automatically. Overlay position comes from `def.overlayStyle` (percentage-based `top/left/width`). `onError` hides missing overlay sprites gracefully. `?cosmeticDebug=1` URL param renders red bounding boxes instead of images for position tuning — remove debug check once positions are finalised.
+**Cosmetic overlays:** active cosmetic items (`type === 'cosmetic'` in `stats.activeItems`) are rendered as `<img>` overlays inside a `position: relative; display: inline-block` wrapper around the sprite. The wrapper carries all movement/flip/animation styles (previously on the `<img>` directly), so `scaleX(-1)` direction flip applies to both sprite and overlays automatically. Overlay position comes from `def.overlayStyle` (percentage-based `top/left/width`). `onError` hides missing overlay sprites gracefully. `?cosmeticDebug=1` URL param renders red bounding boxes instead of images for position tuning. Cosmetics are **not rendered when `jimmySleeping`**. Cosmetic `activeItems` are also excluded from the habitat floor `HabitatItem` loop (they render on the sprite, not the ground).
 
 Active items from `stats.activeItems` are rendered as absolutely positioned elements on the grass at their stored `x` position, behind Jimmy (lower z-index). Items fade to `opacity-50` when >70% through their lifetime. Item sprite tried first, falls back to emoji.
 
@@ -262,9 +271,11 @@ Speaks the whole word on mount, then phonemes one by one (800ms gap before phone
 
 UI: blank tiles (one per grapheme in `wordEntry.graphemes`) at the top; shuffled grapheme buttons below (word graphemes + 2 distractors, all as individual buttons — duplicates show multiple buttons).
 
+Distractors exclude phoneme aliases of word graphemes (e.g. word has `f` → `ff` not offered as distractor) — imports `PHONEME_ALIASES` from `questionSelector.js`.
+
 Tap handling (per-position, anti-guessing):
 - Correct: fills blank green, moves to next position
-- Wrong: tapped button flashes red, correct button flashes green for 800ms, correct grapheme auto-fills blank (grey), records error
+- Wrong: tapped button flashes red, correct button flashes green for 800ms, correct grapheme auto-fills blank (grey), records error. The wrong button is only consumed (greyed) if its grapheme is NOT needed for a later position — preventing a child from being locked out by tapping a grapheme that appears later in the word.
 - Once all positions filled: fires `onCorrect()` if no errors, `onWrong()` if any errors. GameScreen's `advance()` adds the inter-question delay.
 
 ### `src/components/TrickyWordQuestion.jsx`
@@ -279,7 +290,7 @@ Tap handling: anti-guessing rules — one attempt, wrong reveals correct (green)
 ## Screens
 
 ### `src/screens/HomeScreen.jsx`
-Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 64px), and reset button (bottom-right, small/hidden).
+Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 64px), ⭐ progress button (top-left, 64px), and reset button (bottom-right, small/hidden).
 
 ### `src/screens/GameScreen.jsx`
 Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned })` after the 10th question.
@@ -306,8 +317,11 @@ Shown after 10 questions. Displays Jimmy habitat (static pose based on score), c
 ### `src/screens/ShopScreen.jsx`
 2-column item grid. Each card shows emoji, name, cost. States: available (tappable), can't afford (cost in red), already active/owned (greyed, labelled), coming soon (greyed, no price). Tapping an available card shows a confirmation modal (emoji, name, cost, Buy/Cancel). On confirm calls `pet.purchaseItem(itemId)`. Flash message on success/failure. Calls `usePet` internally (same as HomeScreen).
 
+### `src/screens/ProgressScreen.jsx`
+Shows all Phase 2 and Phase 3 graphemes in Letters and Sounds order, colour-coded by status: grey = unseen, yellow = learning (introduced), orange = practising, green = mastered. Summary count chips at the top (Learning / Practising / Mastered). Graphemes laid out in a 6-column grid per phase. Uses `useProgress(GUEST.id)` directly — read-only, no game logic. Accessible via ⭐ button on HomeScreen.
+
 ## Navigation
-React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`). No router library.
+React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"` | `"progress"`). No router library.
 
 ## Anti-guessing principle — critical design constraint
 - Each question gets exactly **one attempt**
@@ -337,7 +351,7 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`
 - **Session 5:** New sprites (happy, sad, 6-frame walk cycle); items.js catalogue; usePet extended with activeItems/inventory/purchaseItem; habitat renders placed items with expiry fade; ShopScreen; shop button on HomeScreen; fixed summary screen showing stale stats (stats/mood now passed through onSessionComplete)
 - **Session 6:** Poop generation (45–90 min intervals, max 3, random x); cleanliness decay multiplier per poop (×1.5 stackable); PoopItem with CSS smell animation; poop tap with shovel ownership check + toast; bath activated as placed consumable (0.6/min, 20 min); shovel activated (permanent tool); cosmetics changed to 4-day timed items (not permanent); coin economy rebalanced (cosmetic prices increased)
 - **Session 7:** Shovel durability (10 uses, use count display, legacy migration); stat bar direction arrows (▲▼►); empty-bar consequences (sleep pose, sluggish wander, grubby filter, faster poops, halved coins); confusable distractor engine (CONFUSABLE_PAIRS); dynamic option count (3/4/5 by mastery, flex-wrap buttons); 35 Phase 4 CCVC/CVCC words; SpellingQuestion component; question weights updated to 40/20/20/20; sleep/dirty/hat sprites processed
-- **Session 8:** Cosmetic overlays (hat renders on Jimmy's head, flips with direction, sprite wrapper pattern); `cosmeticSprites.js` service; `overlayStyle` in items.js; hat unlocked, scarf still comingSoon; 26 tricky words in `trickyWords.js`; tricky word progress tracking in `useProgress.js` (separate storage key, unseen→seen→familiar→known); `TrickyWordQuestion` component (1500ms presentation phase); question weights 35/20/15/15/15; `selectNextTrickyWord` exported from useProgress
+- **Session 8:** Cosmetic overlays (hat renders on Jimmy's head, flips with direction, sprite wrapper pattern); `cosmeticSprites.js` service; `overlayStyle` in items.js; hat unlocked, scarf still comingSoon; cosmetics excluded from habitat floor rendering and hidden when sleeping; 26 tricky words in `trickyWords.js`; tricky word progress tracking in `useProgress.js` (separate storage key, unseen→seen→familiar→known); `TrickyWordQuestion` component (1500ms presentation phase); question weights 35/20/15/15/15; `selectNextTrickyWord` exported from useProgress; decay system rebuilt with `pendingDecay` fractional accumulation (all stats now work correctly in real time); food rate 2/min; `introduced` graphemes weighted 70% in question selection; `ProgressScreen` showing all grapheme statuses; spelling bug fixes (alias exclusion from distractors, grapheme-needed-later not consumed on wrong tap); stat bar numeric values; `saveReward` preserves decay timestamp
 
 ## Coming in session 9
 - **User profiles:** profile selection screen on launch, create profile flow (name + colour picker), per-profile storage (already keyed by userId). Guest profile stays as migration fallback — on first launch after this session, if guest data exists offer it as a profile to keep. Consider a parent/settings area accessible via long-press on home screen (view progress, reset profile, manage profiles).
