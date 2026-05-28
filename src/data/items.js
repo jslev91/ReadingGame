@@ -56,7 +56,7 @@ export const ITEMS = [
     maxActive: 1,
     consumedOnUse: false,
     spriteHeightPx: 240,
-    bottomPx: 0,
+    bottomPx: -20,
   },
   {
     id: 'sign',
