@@ -345,6 +345,15 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`
 - At the start of every new session: run `git status` and `git log --oneline -5` before touching anything
 - **Update CLAUDE.md whenever architecture, data shapes, design decisions, or behaviour changes** — do not wait to be asked
 
+## Branch strategy
+- **`dev`** — active development branch. All code changes go here.
+- **`test`** — stable branch for phone/device testing. Promote from `dev` when a feature is ready to test: `git checkout test && git merge dev && git push && git checkout dev`
+- **`main`** — future production/release branch (not yet in active use)
+- Never commit directly to `test` or `main`
+
+## Test mode
+Append `?testMode=1` to the app URL to compress all pet timings by 300× (minutes become seconds). Works on any build including the deployed PWA — no code change or rebuild required. Implemented in `usePet.js` via `URLSearchParams`. Remove the param to return to normal speed.
+
 ## Session build history
 - **Session 1:** Scaffold, CLAUDE.md, tts + storage services, phonics data, usePet, PhonemeQuestion, basic App wiring
 - **Session 2:** TTS voice selection + iOS fix, Jimmy component, useProgress (full), questionSelector, GameScreen, HomeScreen, App navigation; fixed stale-closure question auto-advance bug; fixed progression gate (removed per-session cap, replaced with practising-status check); added ttsText to all phonics entries + word-by-word TTS pacing; recorded .wav files for all 50 graphemes; fixed StrictMode double-audio (AbortError guard + fallbackCalled flag)
@@ -356,6 +365,5 @@ React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"`
 - **Session 8:** Cosmetic overlays (hat renders on Jimmy's head, flips with direction, sprite wrapper pattern); `cosmeticSprites.js` service; `overlayStyle` in items.js; hat unlocked, scarf still comingSoon; cosmetics excluded from habitat floor rendering and hidden when sleeping; 26 tricky words in `trickyWords.js`; tricky word progress tracking in `useProgress.js` (separate storage key, unseen→seen→familiar→known); `TrickyWordQuestion` component (1500ms presentation phase); question weights 35/20/15/15/15; `selectNextTrickyWord` exported from useProgress; decay system rebuilt with `pendingDecay` fractional accumulation (all stats now work correctly in real time); food rate 2/min; `introduced` graphemes weighted 70% in question selection; `ProgressScreen` showing all grapheme statuses; spelling bug fixes (alias exclusion from distractors, grapheme-needed-later not consumed on wrong tap); stat bar numeric values; `saveReward` preserves decay timestamp; decay rates rebalanced (energy −70/day, hunger −50/day, cleanliness −20/day); introduction pacing tightened (`canIntroduceNew` now requires zero `introduced` graphemes before unlocking next sound)
 
 ## Coming in session 9
-- **Dev/test environment split:** replace hardcoded `TEST_MODE` flag with a proper env-var or URL-param mechanism so fast timings are available without touching source code.
 - **User profiles:** profile selection screen on launch, create profile flow (name + colour picker), per-profile storage (already keyed by userId). Guest profile stays as migration fallback — on first launch after this session, if guest data exists offer it as a profile to keep. Consider a parent/settings area accessible via long-press on home screen (view progress, reset profile, manage profiles).
 - **Scarf cosmetic:** remove `comingSoon` from scarf in `items.js` once `public/images/cosmetics/scarf.png` is added. Tune `overlayStyle` position with `?cosmeticDebug=1`.

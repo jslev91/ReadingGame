@@ -4,9 +4,10 @@ import { getItem as getStorageItem, setItem } from '../services/storage'
 
 const STORAGE_KEY = 'petState'
 
-// TEST_MODE: set to true to compress all timings by 60× (minutes → seconds).
-// Revert to false before committing. To re-enable: flip this flag and reset pet state.
-const TEST_MODE = false
+// TEST_MODE: append ?testMode=1 to the URL to compress all timings by 300×.
+// Works on any build including the deployed PWA — no code change or rebuild needed.
+const TEST_MODE = typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('testMode') === '1'
 const T = TEST_MODE ? 300 : 1  // time compression factor
 
 const DAY_MS = 24 * 60 * 60 * 1000
