@@ -144,9 +144,19 @@ export function selectNextQuestion(progressMap) {
     return { entry, distractors: pickDistractors(entry, progressMap, optionCount - 1), isNew: false, optionCount }
   }
 
-  // Prefer reviewing existing graphemes unless conditions allow a new introduction
+  // Prefer reviewing existing graphemes unless conditions allow a new introduction.
+  // Weight introduced graphemes 70% vs practising 30% so recently-seen sounds
+  // get more repetition before the child moves on.
   if (reviewCandidates.length > 0 && !canIntroduceNew(progressMap)) {
-    const entry = pickRandom(reviewCandidates)
+    const introducedCandidates = reviewCandidates.filter(p => getStatus(progressMap, p.grapheme) === 'introduced')
+    const practisingCandidates = reviewCandidates.filter(p => getStatus(progressMap, p.grapheme) === 'practising')
+    let pool = reviewCandidates
+    if (introducedCandidates.length > 0 && practisingCandidates.length > 0) {
+      pool = Math.random() < 0.7 ? introducedCandidates : practisingCandidates
+    } else if (introducedCandidates.length > 0) {
+      pool = introducedCandidates
+    }
+    const entry = pickRandom(pool)
     const optionCount = getOptionCount(progressMap, entry)
     return { entry, distractors: pickDistractors(entry, progressMap, optionCount - 1), isNew: false, optionCount }
   }

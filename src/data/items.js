@@ -9,7 +9,7 @@ export const ITEMS = [
     emoji: '🍃',
     effect: {
       stat: 'hunger',
-      ratePerMinute: 0.5,
+      ratePerMinute: 2,
       duration: 30,
     },
     maxActive: 1,

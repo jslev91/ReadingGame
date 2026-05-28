@@ -198,7 +198,7 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
 
         {/* Jimmy sprite + cosmetic overlays */}
         {(() => {
-          const cosmeticItems = activeItems.filter(i => getItem(i.itemId)?.type === 'cosmetic')
+          const cosmeticItems = jimmySleeping ? [] : activeItems.filter(i => getItem(i.itemId)?.type === 'cosmetic')
           const debugOverlay = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('cosmeticDebug') === '1'
           const spriteStyle = jimmySleeping ? {
             width: '95px',

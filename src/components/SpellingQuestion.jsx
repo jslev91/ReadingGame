@@ -124,10 +124,10 @@ export default function SpellingQuestion({ wordEntry, onCorrect, onWrong, locked
         if (correctBtn) newFlash[correctBtn.id] = 'correct'
         setFlashIds(newFlash)
 
-        // Only mark the wrong button as used — not the correct one. Marking
-        // both could exhaust all buttons before the last position is reached,
-        // leaving the user with nothing to tap.
-        setUsedIds(new Set([...usedIds, button.id]))
+        // Don't consume the wrong button if its grapheme is still needed for a
+        // later position — otherwise tapping it early locks the child out.
+        const neededLater = wordEntry.graphemes.slice(pos + 1).includes(button.grapheme)
+        if (!neededLater) setUsedIds(new Set([...usedIds, button.id]))
 
         // Clear flash after 800ms
         setTimeout(() => setFlashIds({}), 800)
