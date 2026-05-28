@@ -35,6 +35,9 @@ $ip = (Get-NetIPAddress -AddressFamily IPv4 |
 Write-Host ""
 Write-Host "  Dev server ready!" -ForegroundColor Green
 Write-Host ""
-Write-Host "  Local:   http://localhost:5173" -ForegroundColor White
-Write-Host "  Mobile:  http://${ip}:5173" -ForegroundColor White
+Write-Host "  Local:            http://localhost:5173" -ForegroundColor White
+Write-Host "  Local (test):     http://localhost:5173/?testMode=1" -ForegroundColor DarkYellow
+Write-Host ""
+Write-Host "  Mobile:           http://${ip}:5173" -ForegroundColor White
+Write-Host "  Mobile (test):    http://${ip}:5173/?testMode=1" -ForegroundColor DarkYellow
 Write-Host ""
