@@ -267,7 +267,7 @@ export function usePet(userId) {
       const tool = (stats.inventory.tools ?? []).find(t => t.id === itemId)
       if (tool && tool.usesRemaining > 0) return { canBuy: false, reason: 'already_owned' }
     }
-    if (def.type === 'cosmetic') {
+    if (def.type === 'cosmetic' || def.type === 'decoration') {
       const activeCount = stats.activeItems.filter(i => i.itemId === itemId).length
       if (activeCount >= def.maxActive) return { canBuy: false, reason: 'already_active' }
     }
@@ -281,7 +281,7 @@ export function usePet(userId) {
     const def = getItem(itemId)
     save(prev => {
       const next = { ...prev, coins: prev.coins - def.cost }
-      if (def.type === 'consumable' || def.type === 'cosmetic') {
+      if (def.type === 'consumable' || def.type === 'cosmetic' || def.type === 'decoration') {
         const now = Date.now()
         const expiresAt = new Date(now + def.effect.duration * 60 * 1000).toISOString()
         next.activeItems = [
