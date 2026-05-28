@@ -3,17 +3,9 @@ import { usePet } from '../hooks/usePet'
 import { removeItem } from '../services/storage'
 import Jimmy from '../components/Jimmy'
 
-const GUEST = { id: 'guest', name: 'Player' }
-
-function handleReset() {
-  removeItem(GUEST.id, 'graphemeProgress')
-  removeItem(GUEST.id, 'petState')
-  window.location.reload()
-}
-
-export default function HomeScreen({ onPlay, onShop, onProgress }) {
-  const pet = usePet(GUEST.id)
-  const [toast, setToast] = useState(null) // { message, x }
+export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress, onSwitchProfile }) {
+  const pet = usePet(userId)
+  const [toast, setToast] = useState(null)
 
   function showToast(message, x) {
     setToast({ message, x })
@@ -29,6 +21,14 @@ export default function HomeScreen({ onPlay, onShop, onProgress }) {
     } else {
       showToast('Need a shovel! 🪣', x)
     }
+  }
+
+  function handleReset() {
+    if (!window.confirm(`Reset all progress for ${profile.name}?`)) return
+    removeItem(userId, 'graphemeProgress')
+    removeItem(userId, 'petState')
+    removeItem(userId, 'trickyWordProgress')
+    window.location.reload()
   }
 
   return (
@@ -47,6 +47,20 @@ export default function HomeScreen({ onPlay, onShop, onProgress }) {
         aria-label="Progress"
       >
         ⭐
+      </button>
+
+      {/* Profile indicator */}
+      <button
+        onClick={onSwitchProfile}
+        className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white border-2 border-yellow-200 shadow-sm active:scale-95 transition-transform"
+        aria-label="Switch profile"
+      >
+        <div
+          className="w-6 h-6 rounded-full flex-shrink-0"
+          style={{ backgroundColor: profile.colour }}
+        />
+        <span className="font-bold text-yellow-900">{profile.name}</span>
+        <span className="text-gray-400 text-xs">▼</span>
       </button>
 
       <div className="w-full max-w-sm relative">
@@ -74,7 +88,7 @@ export default function HomeScreen({ onPlay, onShop, onProgress }) {
       </button>
 
       <button
-        onClick={() => { if (window.confirm('Reset all progress?')) handleReset() }}
+        onClick={handleReset}
         className="absolute bottom-4 right-4 text-xs text-gray-300 px-2 py-1 rounded"
         aria-label="Reset progress"
       >

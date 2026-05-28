@@ -10,12 +10,11 @@ import BlendingQuestion from '../components/BlendingQuestion'
 import SpellingQuestion from '../components/SpellingQuestion'
 import TrickyWordQuestion from '../components/TrickyWordQuestion'
 
-const GUEST = { id: 'guest', name: 'Player' }
 const SESSION_LENGTH = 10
 
-export default function GameScreen({ onHome, onSessionComplete }) {
-  const pet = usePet(GUEST.id)
-  const progress = useProgress(GUEST.id)
+export default function GameScreen({ userId, onHome, onSessionComplete }) {
+  const pet = usePet(userId)
+  const progress = useProgress(userId)
   const trickyQuestion = useRef(null)
   const [question, setQuestion] = useState(null)
   const [locked, setLocked] = useState(false)

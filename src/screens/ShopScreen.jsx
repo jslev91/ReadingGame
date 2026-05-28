@@ -2,8 +2,6 @@ import { useState } from 'react'
 import { ITEMS } from '../data/items'
 import { usePet } from '../hooks/usePet'
 
-const GUEST = { id: 'guest', name: 'Player' }
-
 function CardLabel({ reason }) {
   if (reason === 'coming_soon') return <span className="text-xs text-gray-400 mt-1">Coming soon</span>
   if (reason === 'already_active') return <span className="text-xs text-gray-400 mt-1">Active</span>
@@ -67,8 +65,8 @@ function ConfirmModal({ item, onConfirm, onCancel }) {
   )
 }
 
-export default function ShopScreen({ onBack }) {
-  const pet = usePet(GUEST.id)
+export default function ShopScreen({ userId, onBack }) {
+  const pet = usePet(userId)
   const [pending, setPending] = useState(null)
   const [flash, setFlash] = useState(null)
 

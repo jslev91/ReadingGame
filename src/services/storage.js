@@ -1,5 +1,15 @@
 const key = (userId, suffix) => `jimmy:${userId}:${suffix}`
 
+// Global keys not namespaced by user (profiles list, active profile)
+export function getGlobal(suffix) {
+  const raw = localStorage.getItem(`jimmy:${suffix}`)
+  if (raw === null) return null
+  try { return JSON.parse(raw) } catch { return null }
+}
+export function setGlobal(suffix, value) {
+  localStorage.setItem(`jimmy:${suffix}`, JSON.stringify(value))
+}
+
 export function getItem(userId, suffix) {
   const raw = localStorage.getItem(key(userId, suffix))
   if (raw === null) return null

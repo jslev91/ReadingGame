@@ -1,8 +1,6 @@
 import phonics from '../data/phonics'
 import { useProgress } from '../hooks/useProgress'
 
-const GUEST = { id: 'guest', name: 'Player' }
-
 const STATUS_STYLE = {
   unseen:      { bg: 'bg-gray-100',   text: 'text-gray-300',   label: '' },
   introduced:  { bg: 'bg-yellow-100', text: 'text-yellow-700', label: '★' },
@@ -38,8 +36,8 @@ function PhaseSection({ phase, entries, progressMap }) {
   )
 }
 
-export default function ProgressScreen({ onBack }) {
-  const { progressMap } = useProgress(GUEST.id)
+export default function ProgressScreen({ userId, onBack }) {
+  const { progressMap } = useProgress(userId)
 
   const phase2 = phonics.filter(p => p.phase === 2).sort((a, b) => a.order - b.order)
   const phase3 = phonics.filter(p => p.phase === 3).sort((a, b) => a.order - b.order)
