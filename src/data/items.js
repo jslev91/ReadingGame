@@ -55,6 +55,7 @@ export const ITEMS = [
     effect: { duration: 4 * 24 * 60 },
     maxActive: 1,
     consumedOnUse: false,
+    spriteHeightPx: 160,
   },
   {
     id: 'sign',
@@ -67,6 +68,7 @@ export const ITEMS = [
     effect: { duration: 4 * 24 * 60 },
     maxActive: 1,
     consumedOnUse: false,
+    spriteHeightPx: 160,
   },
   {
     id: 'wateringhole',
@@ -79,6 +81,7 @@ export const ITEMS = [
     effect: { duration: 4 * 24 * 60 },
     maxActive: 1,
     consumedOnUse: false,
+    bottomPx: 8,
   },
   {
     id: 'hat',

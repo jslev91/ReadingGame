@@ -87,17 +87,20 @@ function HabitatItem({ instance }) {
   const progress = (now - placed) / (expires - placed)
   const fading = progress > 0.7
 
+  const heightPx = def.spriteHeightPx ?? 32
+  const bottomPx = def.bottomPx ?? 32
+
   return (
     <div
-      className={`absolute bottom-8 text-3xl select-none ${fading ? 'opacity-50' : ''}`}
-      style={{ left: `${instance.x}%`, transform: 'translateX(-50%)', zIndex: 1 }}
+      className={`absolute text-3xl select-none ${fading ? 'opacity-50' : ''}`}
+      style={{ left: `${instance.x}%`, bottom: `${bottomPx}px`, transform: 'translateX(-50%)', zIndex: 1 }}
       aria-hidden="true"
     >
       {def.sprite ? (
         <img
           src={def.sprite}
           alt=""
-          className="h-8 w-auto"
+          style={{ height: `${heightPx}px`, width: 'auto' }}
           onError={e => { e.currentTarget.style.display = 'none'; e.currentTarget.nextSibling.style.display = 'block' }}
         />
       ) : null}
