@@ -76,6 +76,7 @@ export default function App() {
       onShop={() => setScreen('shop')}
       onProgress={() => setScreen('progress')}
       onSwitchProfile={() => setScreen('profiles')}
+      onDeleteProfile={() => { setProfile(null); setScreen('home') }}
     />
   )
 }
