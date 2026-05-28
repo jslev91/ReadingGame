@@ -1,20 +1,28 @@
+// Voices load asynchronously — cache them after voiceschanged so getBestVoice()
+// never sees an empty list regardless of when speak() is first called.
+let cachedVoices = []
+function loadVoices() {
+  cachedVoices = window.speechSynthesis?.getVoices() ?? []
+}
+if (typeof window !== 'undefined' && window.speechSynthesis) {
+  window.speechSynthesis.addEventListener('voiceschanged', loadVoices)
+  loadVoices()
+}
+
 function getBestVoice() {
-  const voices = window.speechSynthesis.getVoices()
   return (
-    voices.find(v => v.name.includes('Google') && v.lang === 'en-GB') ??
-    voices.find(v => v.lang === 'en-GB') ??
+    cachedVoices.find(v => v.name.includes('Google') && v.lang === 'en-GB') ??
+    cachedVoices.find(v => v.lang === 'en-GB') ??
+    cachedVoices.find(v => v.lang.startsWith('en')) ??
+    cachedVoices[0] ??
     null
   )
 }
 
-// audioKey: filename stem under /audio/ (e.g. "s", "oo_long")
-// fallbackText: spoken via Web Speech API when the audio file is missing
-// Returns a cancel function — always use as useEffect cleanup to prevent
-// double-play from StrictMode and rapid question changes.
 export function speak(audioKey, fallbackText) {
   const audio = new Audio(`/audio/${audioKey}.wav`)
   let fallbackCalled = false
-  let cancelled = false   // set by cancel fn; blocks late async onerror/catch callbacks
+  let cancelled = false
   let fallbackTimer = null
 
   function triggerFallback() {
@@ -32,11 +40,7 @@ export function speak(audioKey, fallbackText) {
     }, 100)
   }
 
-  // onerror fires asynchronously — may arrive after cancel() has already run,
-  // so the cancelled flag (not just clearTimeout) is what actually stops it.
   audio.onerror = triggerFallback
-
-  // AbortError means we intentionally paused via cleanup — do not fall back to TTS
   audio.play().catch(err => {
     if (err.name !== 'AbortError') triggerFallback()
   })

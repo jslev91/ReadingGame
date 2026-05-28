@@ -31,7 +31,9 @@ docs/          ← session briefings and reference material
 ### `src/services/tts.js`
 Exported `speak(audioKey, fallbackText)` function. Plays `/audio/${audioKey}.wav` first; falls back to Web Speech API speaking `fallbackText` if the file is missing or fails. Web Speech API: prefers Google `en-GB` voice, rate 0.82, 100ms iOS delay. **Never call `speechSynthesis` or `new Audio()` directly in a component.**
 
-Recorded `.wav` files live in `public/audio/`. All 50 graphemes have recordings — TTS fallback is available but not expected to trigger in normal use.
+Recorded `.wav` files live in `public/audio/`. All 50 graphemes have recordings — TTS fallback is used for whole words (blending/spelling) and all tricky words.
+
+Voices are cached at module load via `voiceschanged` event so `getBestVoice()` never sees an empty list. Voice preference order: Google en-GB → any en-GB → any en-* → first available. This fixes TTS silence on devices where `getVoices()` returns empty on first call.
 
 The cancel function returned by `speak()` clears both the Audio element and any pending TTS timer (100ms delay). Always use it as a `useEffect` cleanup. `speakBlending` in `BlendingQuestion` tracks cancel functions from all started `speak()` calls so `cancelAll` stops active audio, not just pending timeouts.
 
@@ -97,8 +99,13 @@ Current catalogue:
 | food | Leaves | 8 | ✓ (placed consumable, 2/min hunger, 30 min) |
 | bath | Bath Time | 10 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
 | shovel | Shovel | 20 | ✓ (tool, 10 uses, enables poop removal; `maxUses: 10`) |
+| tree | Acacia Tree | 20 | ✓ (decoration, 4 days, `spriteHeightPx: 240, bottomPx: 0`) |
+| sign | Signpost | 15 | ✓ (decoration, 4 days, `spriteHeightPx: 160`) |
+| wateringhole | Watering Hole | 20 | ✓ (decoration, 4 days, `bottomPx: 8`) |
 | hat | Top Hat | 30 | ✓ (4-day timed cosmetic, renders as overlay on sprite) |
-| scarf | Rainbow Scarf | 25 | session 9 (comingSoon — sprite not yet added) |
+| scarf | Rainbow Scarf | 25 | ✓ (4-day timed cosmetic, overlay on sprite) |
+
+**Decoration type:** habitat floor items with duration but no stat effect. Rendered by `HabitatItem` like consumables. Item definition supports `spriteHeightPx` (default 32) and `bottomPx` (default 32) to control size and ground position.
 
 Exports `ITEMS` array and `getItem(id)`.
 
@@ -367,6 +374,5 @@ Append `?testMode=1` to the app URL to compress all pet timings by 300× (minute
 - **Session 9:** Dev/test branch strategy (`dev` → `test` → `main`); `?testMode=1` URL param replaces hardcoded flag; test mode splash screen (prominent normal-mode escape, small continue link); user profiles (`ProfileSelectScreen`, create with colour picker, guest data auto-migration, profile indicator on HomeScreen); parent settings panel (long-press ⚙️ bottom-left 800ms — switch profile, reset progress, delete profile, edit graphemes); grapheme editor (`setGraphemeStatus` in `useProgress`, editable `ProgressScreen` — tap tiles to cycle unseen→introduced→practising→mastered); scarf cosmetic unlocked (flood-fill background removal, `overlayStyle` tuned)
 
 ## Coming in session 10
-- More cosmetic items or shop content
 - Phase 3 audio recordings (currently falling back to TTS)
 - Possible: animated reward sequences, streak tracking, difficulty calibration
