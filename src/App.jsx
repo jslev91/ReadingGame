@@ -39,6 +39,10 @@ export default function App() {
     return <ProgressScreen userId={profile.id} onBack={() => setScreen('home')} />
   }
 
+  if (screen === 'editProgress') {
+    return <ProgressScreen userId={profile.id} editable onBack={() => setScreen('home')} />
+  }
+
   if (screen === 'game') {
     return (
       <GameScreen
@@ -77,6 +81,7 @@ export default function App() {
       onProgress={() => setScreen('progress')}
       onSwitchProfile={() => setScreen('profiles')}
       onDeleteProfile={() => { setProfile(null); setScreen('home') }}
+      onEditGraphemes={() => setScreen('editProgress')}
     />
   )
 }

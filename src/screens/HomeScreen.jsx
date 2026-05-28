@@ -3,7 +3,7 @@ import { usePet } from '../hooks/usePet'
 import { removeItem, getGlobal, setGlobal } from '../services/storage'
 import Jimmy from '../components/Jimmy'
 
-function ParentPanel({ profile, onClose, onSwitchProfile, onDeleteProfile, onResetProgress }) {
+function ParentPanel({ profile, onClose, onSwitchProfile, onDeleteProfile, onResetProgress, onEditGraphemes }) {
   const [confirm, setConfirm] = useState(null) // 'reset' | 'delete'
 
   return (
@@ -24,6 +24,13 @@ function ParentPanel({ profile, onClose, onSwitchProfile, onDeleteProfile, onRes
           className="w-full py-3 rounded-2xl border-2 border-yellow-300 text-yellow-800 font-bold"
         >
           Switch Profile
+        </button>
+
+        <button
+          onClick={onEditGraphemes}
+          className="w-full py-3 rounded-2xl border-2 border-blue-200 text-blue-600 font-bold"
+        >
+          Edit Graphemes
         </button>
 
         {confirm === 'reset' ? (
@@ -64,7 +71,7 @@ function ParentPanel({ profile, onClose, onSwitchProfile, onDeleteProfile, onRes
   )
 }
 
-export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress, onSwitchProfile, onDeleteProfile }) {
+export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress, onSwitchProfile, onDeleteProfile, onEditGraphemes }) {
   const pet = usePet(userId)
   const [toast, setToast] = useState(null)
   const [parentOpen, setParentOpen] = useState(false)
@@ -118,6 +125,7 @@ export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress
           onSwitchProfile={() => { setParentOpen(false); onSwitchProfile() }}
           onResetProgress={handleResetProgress}
           onDeleteProfile={handleDeleteProfile}
+          onEditGraphemes={() => { setParentOpen(false); onEditGraphemes() }}
         />
       )}
 

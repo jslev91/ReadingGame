@@ -206,12 +206,21 @@ export function useProgress(userId) {
     })
   }, [trickyWordProgressMap])
 
+  const setGraphemeStatus = useCallback((grapheme, status) => {
+    const correctCount = status === 'mastered' ? 7 : status === 'practising' ? 3 : 0
+    save({
+      ...progressMap,
+      [grapheme]: { status, correctCount, lastSeen: new Date().toISOString() },
+    })
+  }, [progressMap])
+
   return {
     progressMap,
     getProgress,
     recordPresented,
     recordCorrect,
     recordWrong,
+    setGraphemeStatus,
     trickyWordProgressMap,
     recordTrickyPresented,
     recordTrickyCorrect,

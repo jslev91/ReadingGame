@@ -1,6 +1,8 @@
 import phonics from '../data/phonics'
 import { useProgress } from '../hooks/useProgress'
 
+const STATUSES = ['unseen', 'introduced', 'practising', 'mastered']
+
 const STATUS_STYLE = {
   unseen:      { bg: 'bg-gray-100',   text: 'text-gray-300',   label: '' },
   introduced:  { bg: 'bg-yellow-100', text: 'text-yellow-700', label: '★' },
@@ -8,9 +10,20 @@ const STATUS_STYLE = {
   mastered:    { bg: 'bg-green-100',  text: 'text-green-700',  label: '★★★' },
 }
 
-function GraphemeTile({ entry, progress }) {
+function GraphemeTile({ entry, progress, editable, onCycle }) {
   const status = progress?.status ?? 'unseen'
   const { bg, text, label } = STATUS_STYLE[status]
+  if (editable) {
+    return (
+      <button
+        onClick={onCycle}
+        className={`flex flex-col items-center justify-center rounded-xl p-2 ${bg} min-w-0 active:scale-95 transition-transform`}
+      >
+        <span className={`text-xl font-bold ${text}`}>{entry.grapheme}</span>
+        {label && <span className={`text-xs ${text} leading-none`}>{label}</span>}
+      </button>
+    )
+  }
   return (
     <div className={`flex flex-col items-center justify-center rounded-xl p-2 ${bg} min-w-0`}>
       <span className={`text-xl font-bold ${text}`}>{entry.grapheme}</span>
@@ -19,7 +32,7 @@ function GraphemeTile({ entry, progress }) {
   )
 }
 
-function PhaseSection({ phase, entries, progressMap }) {
+function PhaseSection({ phase, entries, progressMap, editable, onCycle }) {
   return (
     <div className="w-full">
       <h2 className="text-sm font-bold text-gray-400 uppercase tracking-wide mb-2">Phase {phase}</h2>
@@ -29,6 +42,8 @@ function PhaseSection({ phase, entries, progressMap }) {
             key={entry.audioKey ?? entry.grapheme}
             entry={entry}
             progress={progressMap[entry.grapheme]}
+            editable={editable}
+            onCycle={() => onCycle(entry)}
           />
         ))}
       </div>
@@ -36,8 +51,8 @@ function PhaseSection({ phase, entries, progressMap }) {
   )
 }
 
-export default function ProgressScreen({ userId, onBack }) {
-  const { progressMap } = useProgress(userId)
+export default function ProgressScreen({ userId, onBack, editable = false }) {
+  const { progressMap, setGraphemeStatus } = useProgress(userId)
 
   const phase2 = phonics.filter(p => p.phase === 2).sort((a, b) => a.order - b.order)
   const phase3 = phonics.filter(p => p.phase === 3).sort((a, b) => a.order - b.order)
@@ -46,6 +61,12 @@ export default function ProgressScreen({ userId, onBack }) {
     introduced: Object.values(progressMap).filter(p => p.status === 'introduced').length,
     practising: Object.values(progressMap).filter(p => p.status === 'practising').length,
     mastered:   Object.values(progressMap).filter(p => p.status === 'mastered').length,
+  }
+
+  function handleCycle(entry) {
+    const current = progressMap[entry.grapheme]?.status ?? 'unseen'
+    const next = STATUSES[(STATUSES.indexOf(current) + 1) % STATUSES.length]
+    setGraphemeStatus(entry.grapheme, next)
   }
 
   return (
@@ -57,9 +78,14 @@ export default function ProgressScreen({ userId, onBack }) {
           className="min-h-16 min-w-16 flex items-center justify-center text-2xl rounded-2xl bg-white border-2 border-yellow-300 text-yellow-700"
           aria-label="Back"
         >
-          🏠
+          {editable ? '✓' : '🏠'}
         </button>
-        <h1 className="text-2xl font-bold text-yellow-800">Sounds learnt</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-yellow-800">
+            {editable ? 'Edit Graphemes' : 'Sounds learnt'}
+          </h1>
+          {editable && <p className="text-xs text-gray-400 mt-0.5">Tap any grapheme to cycle its status</p>}
+        </div>
       </div>
 
       {/* Summary counts */}
@@ -79,15 +105,15 @@ export default function ProgressScreen({ userId, onBack }) {
       </div>
 
       {/* Legend */}
-      <div className="flex gap-4 text-xs text-gray-400">
+      <div className="flex gap-4 text-xs text-gray-400 flex-wrap">
         <span><span className="text-gray-300">■</span> Not seen</span>
         <span><span className="text-yellow-500">■</span> ★ Learning</span>
         <span><span className="text-orange-500">■</span> ★★ Practising</span>
         <span><span className="text-green-500">■</span> ★★★ Mastered</span>
       </div>
 
-      <PhaseSection phase={2} entries={phase2} progressMap={progressMap} />
-      <PhaseSection phase={3} entries={phase3} progressMap={progressMap} />
+      <PhaseSection phase={2} entries={phase2} progressMap={progressMap} editable={editable} onCycle={handleCycle} />
+      <PhaseSection phase={3} entries={phase3} progressMap={progressMap} editable={editable} onCycle={handleCycle} />
     </div>
   )
 }
