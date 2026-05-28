@@ -68,7 +68,6 @@ export const ITEMS = [
     effect: { duration: 4 * 24 * 60 },
     maxActive: 1,
     consumedOnUse: false,
-    comingSoon: true,
     overlayStyle: { top: '52%', left: '10%', width: '44%' },
   },
 ]
