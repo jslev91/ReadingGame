@@ -101,23 +101,14 @@ function getNextUnseen(progressMap, allowPhase3) {
   return sequence.find(p => getStatus(progressMap, p.grapheme) === 'unseen') ?? null
 }
 
-// A new grapheme is introduced only once the most recently introduced one has
-// reached 'practising' (3 correct answers). This paces introductions naturally
-// without an arbitrary per-session cap that blocks all further progress.
+// A new grapheme is introduced only when no 'introduced' graphemes remain —
+// i.e. every seen grapheme has consolidated to 'practising' or 'mastered'.
+// This prevents the child from being overwhelmed by too many new sounds at once.
 function canIntroduceNew(progressMap) {
-  const introduced = [...phase2, ...phase3].filter(
-    p => getStatus(progressMap, p.grapheme) !== 'unseen'
-  )
-  if (introduced.length === 0) return true
-
-  const lastIntroduced = introduced.sort((a, b) => {
-    const ta = progressMap[a.grapheme]?.lastSeen ?? ''
-    const tb = progressMap[b.grapheme]?.lastSeen ?? ''
-    return tb.localeCompare(ta)
-  })[0]
-
-  const status = getStatus(progressMap, lastIntroduced.grapheme)
-  return status === 'practising' || status === 'mastered'
+  const introducedCount = phonics.filter(
+    p => getStatus(progressMap, p.grapheme) === 'introduced'
+  ).length
+  return introducedCount === 0
 }
 
 // 3 options for introduced, 4 for practising, 5 for mastered

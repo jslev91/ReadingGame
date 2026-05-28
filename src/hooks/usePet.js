@@ -9,10 +9,11 @@ const STORAGE_KEY = 'petState'
 const TEST_MODE = false
 const T = TEST_MODE ? 300 : 1  // time compression factor
 
+const DAY_MS = 24 * 60 * 60 * 1000
 const DECAY = {
-  energy:      { intervalMs: 5  * 60 * 1000 / T },
-  hunger:      { intervalMs: 8  * 60 * 1000 / T },
-  cleanliness: { intervalMs: 20 * 60 * 1000 / T },
+  energy:      { intervalMs: DAY_MS / 70 / T },  // 70 pts lost per day
+  hunger:      { intervalMs: DAY_MS / 50 / T },  // 50 pts lost per day
+  cleanliness: { intervalMs: DAY_MS / 20 / T },  // 20 pts lost per day (base, before poop multiplier)
 }
 
 const DEFAULTS = {
