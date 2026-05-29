@@ -28,11 +28,11 @@ export default function App() {
   }
 
   if (!profile) {
-    return <ProfileSelectScreen onSelect={p => { setProfile(p); setScreen('home') }} />
+    return <ProfileSelectScreen subject="phonics" onSelect={p => { setProfile(p); setScreen('home') }} />
   }
 
   if (screen === 'profiles') {
-    return <ProfileSelectScreen onSelect={p => { setProfile(p); setScreen('home') }} />
+    return <ProfileSelectScreen subject="phonics" onSelect={p => { setProfile(p); setScreen('home') }} />
   }
 
   if (screen === 'progress') {

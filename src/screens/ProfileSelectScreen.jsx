@@ -1,26 +1,6 @@
 import { useState } from 'react'
-import { getGlobal, setGlobal, getItem } from '../services/storage'
-
-const COLOURS = [
-  '#f97316', // orange
-  '#3b82f6', // blue
-  '#22c55e', // green
-  '#ec4899', // pink
-  '#a855f7', // purple
-  '#eab308', // yellow
-]
-
-function uid() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36)
-}
-
-function loadProfiles() {
-  return getGlobal('profiles') ?? []
-}
-
-function saveProfiles(profiles) {
-  setGlobal('profiles', profiles)
-}
+import { useProfiles } from '../hooks/useProfiles'
+import CreateProfileScreen from './CreateProfileScreen'
 
 function ProfileCard({ profile, onSelect, onDelete }) {
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -57,50 +37,32 @@ function ProfileCard({ profile, onSelect, onDelete }) {
   )
 }
 
-export default function ProfileSelectScreen({ onSelect }) {
-  const [profiles, setProfiles] = useState(() => {
-    const existing = loadProfiles()
-    // Guest migration: if guest data exists and no profiles yet, seed a guest profile
-    if (existing.length === 0 && getItem('guest', 'petState') !== null) {
-      const migrated = [{ id: 'guest', name: 'Player', colour: '#f97316' }]
-      saveProfiles(migrated)
-      return migrated
-    }
-    return existing
-  })
+export default function ProfileSelectScreen({ subject = 'phonics', onSelect }) {
+  const { profiles, createProfile, deleteProfile, setActiveProfile } = useProfiles(subject)
   const [creating, setCreating] = useState(false)
-  const [name, setName] = useState('')
-  const [colour, setColour] = useState(COLOURS[0])
 
   function handleSelect(profile) {
-    setGlobal('activeProfile', profile.id)
+    setActiveProfile(profile.id)
     onSelect(profile)
   }
 
-  function handleCreate() {
-    const trimmed = name.trim()
-    if (!trimmed) return
-    const profile = { id: uid(), name: trimmed, colour }
-    const next = [...profiles, profile]
-    saveProfiles(next)
-    setProfiles(next)
+  function handleCreated({ name, colour }) {
+    const profile = createProfile({ name, colour })
     setCreating(false)
-    setName('')
-    setColour(COLOURS[0])
     handleSelect(profile)
   }
 
   function handleDelete(id) {
-    const next = profiles.filter(p => p.id !== id)
-    saveProfiles(next)
-    setProfiles(next)
+    deleteProfile(id)
   }
+
+  const appTitle = subject === 'maths' ? 'Jimmy Maths' : 'Jimmy Phonics'
 
   return (
     <div className="min-h-screen bg-yellow-50 flex flex-col items-center justify-center p-6 gap-8">
       <div className="text-center">
         <div className="text-6xl mb-2">🦒</div>
-        <h1 className="text-3xl font-black text-yellow-800">Jimmy Phonics</h1>
+        <h1 className="text-3xl font-black text-yellow-800">{appTitle}</h1>
         <p className="text-yellow-600 font-semibold mt-1">Who's playing?</p>
       </div>
 
@@ -113,44 +75,10 @@ export default function ProfileSelectScreen({ onSelect }) {
       )}
 
       {creating ? (
-        <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-md flex flex-col gap-4">
-          <input
-            type="text"
-            placeholder="Name"
-            value={name}
-            onChange={e => setName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleCreate()}
-            autoFocus
-            maxLength={20}
-            className="border-2 border-yellow-300 rounded-xl px-4 py-3 text-xl font-bold text-yellow-900 outline-none focus:border-yellow-500"
-          />
-          <div className="flex gap-3 justify-center">
-            {COLOURS.map(c => (
-              <button
-                key={c}
-                onClick={() => setColour(c)}
-                className="w-10 h-10 rounded-full border-4 transition-transform active:scale-95"
-                style={{
-                  backgroundColor: c,
-                  borderColor: colour === c ? '#1f2937' : 'transparent',
-                  transform: colour === c ? 'scale(1.2)' : undefined,
-                }}
-                aria-label={c}
-              />
-            ))}
-          </div>
-          <div className="flex gap-3">
-            <button
-              onClick={() => { setCreating(false); setName('') }}
-              className="flex-1 py-3 rounded-2xl border-2 border-gray-200 text-gray-500 font-bold"
-            >Cancel</button>
-            <button
-              onClick={handleCreate}
-              disabled={!name.trim()}
-              className="flex-1 py-3 rounded-2xl bg-yellow-400 text-yellow-900 font-bold disabled:opacity-40"
-            >Create</button>
-          </div>
-        </div>
+        <CreateProfileScreen
+          onCreated={handleCreated}
+          onCancel={() => setCreating(false)}
+        />
       ) : (
         <button
           onClick={() => setCreating(true)}
