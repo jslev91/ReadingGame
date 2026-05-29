@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getGlobal } from './services/storage'
+import { getGlobal } from './core/services/storage'
 import TestModeSplash from './components/TestModeSplash'
 import ProfileSelectScreen from './screens/ProfileSelectScreen'
 import HomeScreen from './screens/HomeScreen'

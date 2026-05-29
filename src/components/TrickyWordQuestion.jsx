@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { speak } from '../services/tts'
+import { speak } from '../core/services/tts'
 
 export default function TrickyWordQuestion({ targetWord, distractors, status = 'seen', onCorrect, onWrong, locked }) {
   const showWord = status === 'seen' // hide when familiar or known — test recall

@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { usePet } from '../hooks/usePet'
-import { removeItem, getGlobal, setGlobal } from '../services/storage'
+import { removeItem, getGlobal, setGlobal } from '../core/services/storage'
 import Jimmy from '../components/Jimmy'
 import ParentAreaScreen from './ParentAreaScreen'
 

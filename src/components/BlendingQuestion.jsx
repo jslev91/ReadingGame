@@ -4,7 +4,7 @@
 
 import { useEffect, useState, useMemo } from 'react'
 import phonics from '../data/phonics'
-import { speak } from '../services/tts'
+import { speak } from '../core/services/tts'
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5)
