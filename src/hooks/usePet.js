@@ -230,7 +230,7 @@ export function usePet(userId) {
     saveReward(prev => ({
       ...prev,
       coins: prev.coins + coinReward,
-      energy: { ...prev.energy, value: Math.min(prev.energy.max, prev.energy.value + 3) },
+      energy: { ...prev.energy, value: Math.min(prev.energy.max, prev.energy.value + (TEST_MODE ? 25 : 3)) },
     }))
   }
 
