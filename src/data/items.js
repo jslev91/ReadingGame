@@ -69,7 +69,7 @@ export const ITEMS = [
     effect: { duration: 4 * 24 * 60 },
     maxActive: 1,
     consumedOnUse: false,
-    spriteHeightPx: 160,
+    spriteHeightPx: 120,
   },
   {
     id: 'wateringhole',
