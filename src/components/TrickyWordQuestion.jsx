@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { speak } from '../services/tts'
 
-export default function TrickyWordQuestion({ targetWord, distractors, onCorrect, onWrong, locked }) {
+export default function TrickyWordQuestion({ targetWord, distractors, status = 'seen', onCorrect, onWrong, locked }) {
+  const showWord = status === 'seen' // hide when familiar or known — test recall
   const [phase, setPhase] = useState('presentation') // 'presentation' | 'question'
   const [answered, setAnswered] = useState(null)     // null | 'correct' | word tapped
   const options = useRef(
@@ -47,7 +48,7 @@ export default function TrickyWordQuestion({ targetWord, distractors, onCorrect,
   return (
     <div className="flex flex-col items-center gap-6 p-6">
       <div className="flex items-center gap-3">
-        <p className="text-3xl font-bold text-gray-700">{targetWord.word}</p>
+        {showWord && <p className="text-3xl font-bold text-gray-700">{targetWord.word}</p>}
         <button
           onClick={handleReplay}
           className="min-h-12 min-w-12 flex items-center justify-center text-xl rounded-2xl bg-yellow-100 border-2 border-yellow-300"
@@ -56,7 +57,7 @@ export default function TrickyWordQuestion({ targetWord, distractors, onCorrect,
           🔊
         </button>
       </div>
-      <p className="text-sm text-gray-400">Which one did you see?</p>
+      <p className="text-sm text-gray-400">{showWord ? 'Which one did you see?' : 'Which word did you hear?'}</p>
       <div className="flex flex-col gap-3 w-full">
         {options.map(word => (
           <button

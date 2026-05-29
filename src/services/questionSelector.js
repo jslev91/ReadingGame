@@ -101,14 +101,18 @@ function getNextUnseen(progressMap, allowPhase3) {
   return sequence.find(p => getStatus(progressMap, p.grapheme) === 'unseen') ?? null
 }
 
-// A new grapheme is introduced only when no 'introduced' graphemes remain —
-// i.e. every seen grapheme has consolidated to 'practising' or 'mastered'.
-// This prevents the child from being overwhelmed by too many new sounds at once.
+// A new grapheme is introduced only when:
+//   1. No 'introduced' graphemes remain (all have consolidated to practising/mastered)
+//   2. Fewer than 12 graphemes are currently 'practising' (cap active workload)
 function canIntroduceNew(progressMap) {
   const introducedCount = phonics.filter(
     p => getStatus(progressMap, p.grapheme) === 'introduced'
   ).length
-  return introducedCount === 0
+  if (introducedCount > 0) return false
+  const practisingCount = phonics.filter(
+    p => getStatus(progressMap, p.grapheme) === 'practising'
+  ).length
+  return practisingCount < 12
 }
 
 // 3 options for introduced, 4 for practising, 5 for mastered

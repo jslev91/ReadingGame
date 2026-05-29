@@ -135,6 +135,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
           key={'tricky-' + questionIndex}
           targetWord={question.targetWord}
           distractors={question.distractors}
+          status={progress.trickyWordProgressMap[question.targetWord.word]?.status ?? 'seen'}
           onCorrect={handleCorrect}
           onWrong={handleWrong}
           locked={locked}
