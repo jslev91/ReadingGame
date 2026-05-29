@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { getGlobal } from './core/services/storage'
-import TestModeSplash from './components/TestModeSplash'
+import TestModeSplash from './core/components/TestModeSplash'
 import ProfileSelectScreen from './screens/ProfileSelectScreen'
 import HomeScreen from './screens/HomeScreen'
 import GameScreen from './screens/GameScreen'

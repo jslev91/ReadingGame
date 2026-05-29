@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from 'react'
-import { speak } from '../core/services/tts'
-import phonics from '../data/phonics'
+import { speak } from '../../../core/services/tts'
+import phonics from '../../../data/phonics'
 
 // Accepts a full phonics entry object rather than a bare grapheme string
 // because "oo" appears twice in Phase 3 with different phonemes — a string

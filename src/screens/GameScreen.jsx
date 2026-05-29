@@ -3,12 +3,12 @@ import { usePet } from '../core/hooks/usePet'
 import { useProgress, selectNextTrickyWord } from '../subjects/phonics/hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
 import { selectBlendingWord } from '../data/words'
-import Jimmy from '../components/Jimmy'
-import PhonemeQuestion from '../components/PhonemeQuestion'
-import InitialSoundQuestion from '../components/InitialSoundQuestion'
-import BlendingQuestion from '../components/BlendingQuestion'
-import SpellingQuestion from '../components/SpellingQuestion'
-import TrickyWordQuestion from '../components/TrickyWordQuestion'
+import Jimmy from '../core/components/Jimmy'
+import PhonemeQuestion from '../subjects/phonics/components/PhonemeQuestion'
+import InitialSoundQuestion from '../subjects/phonics/components/InitialSoundQuestion'
+import BlendingQuestion from '../subjects/phonics/components/BlendingQuestion'
+import SpellingQuestion from '../subjects/phonics/components/SpellingQuestion'
+import TrickyWordQuestion from '../subjects/phonics/components/TrickyWordQuestion'
 
 const SESSION_LENGTH = 10
 

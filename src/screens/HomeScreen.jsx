@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { usePet } from '../core/hooks/usePet'
 import { removeItem, getGlobal, setGlobal } from '../core/services/storage'
-import Jimmy from '../components/Jimmy'
+import Jimmy from '../core/components/Jimmy'
 import ParentAreaScreen from './ParentAreaScreen'
 
 export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress, onSwitchProfile, onDeleteProfile, onEditGraphemes }) {

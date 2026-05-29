@@ -1,7 +1,7 @@
 import { forwardRef, useImperativeHandle } from 'react'
-import { useJimmyAnimation } from '../core/hooks/useJimmyAnimation'
-import { getItem } from '../data/items'
-import { getCosmeticSprite } from '../services/cosmeticSprites'
+import { useJimmyAnimation } from '../hooks/useJimmyAnimation'
+import { getItem } from '../../data/items'
+import { getCosmeticSprite } from '../../services/cosmeticSprites'
 
 const DECAY_RATES = {
   hunger:      1 / 8,   // per minute

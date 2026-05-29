@@ -1,4 +1,4 @@
-import Jimmy from '../components/Jimmy'
+import Jimmy from '../core/components/Jimmy'
 
 function getMessage(correct) {
   if (correct >= 8) return "Amazing! Jimmy is so happy! 🌟"

@@ -4,7 +4,7 @@
 // Question wording adapts to where the grapheme appears in the word (beginning/end/middle).
 
 import { useEffect, useState, useMemo } from 'react'
-import { speak } from '../core/services/tts'
+import { speak } from '../../../core/services/tts'
 
 function shuffle(arr) {
   return [...arr].sort(() => Math.random() - 0.5)
