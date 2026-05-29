@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { getItem } from '../../data/items'
+import { getItem } from '../data/items'
 import { getItem as getStorageItem, setItem } from '../services/storage'
 
 const STORAGE_KEY = 'petState'

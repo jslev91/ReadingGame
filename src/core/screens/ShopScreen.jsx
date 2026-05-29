@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ITEMS } from '../../data/items'
+import { ITEMS } from '../data/items'
 import { usePet } from '../hooks/usePet'
 
 function CardLabel({ reason }) {

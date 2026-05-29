@@ -2,9 +2,9 @@
 // Productive inverse of BlendingQuestion: recall and sequence sounds → graphemes.
 
 import { useEffect, useState, useMemo, useRef } from 'react'
-import phonics from '../../../data/phonics'
+import phonics from '../data/phonics'
 import { speak } from '../../../core/services/tts'
-import { PHONEME_ALIASES } from '../../../services/questionSelector'
+import { PHONEME_ALIASES } from '../services/questionSelector'
 
 const phase2 = phonics.filter(p => p.phase === 2)
 

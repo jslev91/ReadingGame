@@ -1,4 +1,4 @@
-import phonics from '../../../data/phonics'
+import phonics from '../data/phonics'
 import { useProgress } from '../hooks/useProgress'
 
 const STATUSES = ['unseen', 'introduced', 'practising', 'mastered']

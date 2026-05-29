@@ -3,7 +3,7 @@
 // This is the reverse of reading — decoding spoken sounds into a recognised written word.
 
 import { useEffect, useState, useMemo } from 'react'
-import phonics from '../../../data/phonics'
+import phonics from '../data/phonics'
 import { speak } from '../../../core/services/tts'
 
 function shuffle(arr) {

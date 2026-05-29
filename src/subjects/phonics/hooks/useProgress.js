@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { getItem, setItem } from '../../../core/services/storage'
-import { TRICKY_WORDS } from '../../../data/trickyWords'
+import { TRICKY_WORDS } from '../data/trickyWords'
 
 const STORAGE_KEY = 'graphemeProgress'
 const TRICKY_STORAGE_KEY = 'trickyWordProgress'
