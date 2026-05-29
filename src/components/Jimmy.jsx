@@ -128,7 +128,7 @@ function SkyItem({ instance }) {
   return (
     <div
       className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
-      style={{ top: '6%', left: `${instance.x}%`, transform: 'translateX(-50%)', zIndex: 1 }}
+      style={{ top: '2%', left: `${instance.x}%`, transform: 'translateX(-50%)', zIndex: 1 }}
       aria-hidden="true"
     >
       {def.sprite
@@ -156,7 +156,7 @@ function CloudItem({ instance }) {
       className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
       style={{
         top: `${topPct}%`,
-        zIndex: 1,
+        zIndex: 0,
         animation: `cloudDrift ${duration}s linear ${delay}s infinite`,
       }}
       aria-hidden="true"

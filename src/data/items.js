@@ -126,7 +126,7 @@ export const ITEMS = [
     consumedOnUse: false,
     interactive: 'bounce',
     spriteHeightPx: 44,
-    bottomPx: 40,
+    bottomPx: 32,
   },
   {
     id: 'hat',
