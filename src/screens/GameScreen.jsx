@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
-import { usePet } from '../hooks/usePet'
-import { useProgress, selectNextTrickyWord } from '../hooks/useProgress'
+import { usePet } from '../core/hooks/usePet'
+import { useProgress, selectNextTrickyWord } from '../subjects/phonics/hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
 import { selectBlendingWord } from '../data/words'
 import Jimmy from '../components/Jimmy'

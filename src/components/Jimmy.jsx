@@ -1,5 +1,5 @@
 import { forwardRef, useImperativeHandle } from 'react'
-import { useJimmyAnimation } from '../hooks/useJimmyAnimation'
+import { useJimmyAnimation } from '../core/hooks/useJimmyAnimation'
 import { getItem } from '../data/items'
 import { getCosmeticSprite } from '../services/cosmeticSprites'
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getGlobal, setGlobal, getItem } from '../core/services/storage'
+import { getGlobal, setGlobal, getItem } from '../services/storage'
 
 function uid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
