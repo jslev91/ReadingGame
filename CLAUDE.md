@@ -99,13 +99,22 @@ Current catalogue:
 | food | Leaves | 8 | ✓ (placed consumable, 2/min hunger, 30 min) |
 | bath | Bath Time | 10 | ✓ (placed consumable, 0.6/min cleanliness, 20 min) |
 | shovel | Shovel | 20 | ✓ (tool, 10 uses, enables poop removal; `maxUses: 10`) |
-| tree | Acacia Tree | 20 | ✓ (decoration, 4 days, `spriteHeightPx: 240, bottomPx: 0`) |
+| tree | Acacia Tree | 20 | ✓ (decoration, 4 days, `spriteHeightPx: 240, bottomPx: -20`) |
 | sign | Signpost | 15 | ✓ (decoration, 4 days, `spriteHeightPx: 160`) |
 | wateringhole | Watering Hole | 20 | ✓ (decoration, 4 days, `bottomPx: 8`) |
+| sun | Sunshine | 15 | ✓ (sky decoration, 4 days, `layer: 'sky'`, static) |
+| cloud | Fluffy Cloud | 12 | ✓ (sky decoration, 4 days, `layer: 'sky', animated: 'drift'`, max 2, drifts R→L) |
+| ball | Bouncy Ball | 10 | ✓ (ground decoration, 4 days, `interactive: 'bounce'`, bounces when Jimmy near) |
 | hat | Top Hat | 30 | ✓ (4-day timed cosmetic, renders as overlay on sprite) |
 | scarf | Rainbow Scarf | 25 | ✓ (4-day timed cosmetic, overlay on sprite) |
 
 **Decoration type:** habitat floor items with duration but no stat effect. Rendered by `HabitatItem` like consumables. Item definition supports `spriteHeightPx` (default 32) and `bottomPx` (default 32) to control size and ground position.
+
+**Item rendering routing in Jimmy.jsx** — based on item definition properties:
+- `layer: 'sky'` + `animated: 'drift'` → `CloudItem` (CSS `cloudDrift` keyframe, unique speed/height per instance via instanceId seed)
+- `layer: 'sky'` (no animated) → `SkyItem` (static, positioned at `top: 6%`)
+- `interactive: 'bounce'` → `BallItem` (receives `jimmyX` from `anim.x`; `ballBounce` keyframe plays when `|jimmyX − ball.x| < 14`)
+- Everything else → `HabitatItem` (ground, existing behaviour)
 
 Exports `ITEMS` array and `getItem(id)`.
 

@@ -45,11 +45,19 @@ const SPRITES = {
 }
 const FALLBACK = '/images/jimmy-idle.png'
 
-const smellKeyframes = `
+const habitatKeyframes = `
 @keyframes smell {
   0%   { opacity: 0; transform: translateY(0); }
   40%  { opacity: 0.6; }
   100% { opacity: 0; transform: translateY(-18px); }
+}
+@keyframes cloudDrift {
+  0%   { left: 110%; }
+  100% { left: -25%; }
+}
+@keyframes ballBounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50%       { transform: translateX(-50%) translateY(-22px); }
 }
 `
 
@@ -105,6 +113,86 @@ function HabitatItem({ instance }) {
         />
       ) : null}
       <span style={{ display: def.sprite ? 'none' : 'block' }}>{def.emoji}</span>
+    </div>
+  )
+}
+
+function SkyItem({ instance }) {
+  const def = getItem(instance.itemId)
+  if (!def) return null
+  const now = Date.now()
+  const placed = new Date(instance.placedAt).getTime()
+  const expires = new Date(instance.expiresAt).getTime()
+  const fading = (now - placed) / (expires - placed) > 0.7
+  const heightPx = def.spriteHeightPx ?? 48
+  return (
+    <div
+      className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
+      style={{ top: '6%', left: `${instance.x}%`, transform: 'translateX(-50%)', zIndex: 1 }}
+      aria-hidden="true"
+    >
+      {def.sprite
+        ? <img src={def.sprite} alt="" style={{ height: `${heightPx}px`, width: 'auto' }} onError={e => { e.currentTarget.style.display = 'none' }} />
+        : <span className="text-3xl">{def.emoji}</span>}
+    </div>
+  )
+}
+
+function CloudItem({ instance }) {
+  const def = getItem(instance.itemId)
+  if (!def) return null
+  const now = Date.now()
+  const placed = new Date(instance.placedAt).getTime()
+  const expires = new Date(instance.expiresAt).getTime()
+  const fading = (now - placed) / (expires - placed) > 0.7
+  const heightPx = def.spriteHeightPx ?? 56
+  // Derive unique speed and vertical position from instanceId so two clouds differ
+  const seed = instance.instanceId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0)
+  const duration = 40 + (seed % 25)          // 40–64 seconds per crossing
+  const topPct   = 8  + (seed % 22)          // 8–29% from top of habitat
+  const delay    = -(seed % duration)         // start partway through cycle
+  return (
+    <div
+      className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
+      style={{
+        top: `${topPct}%`,
+        zIndex: 1,
+        animation: `cloudDrift ${duration}s linear ${delay}s infinite`,
+      }}
+      aria-hidden="true"
+    >
+      {def.sprite
+        ? <img src={def.sprite} alt="" style={{ height: `${heightPx}px`, width: 'auto' }} onError={e => { e.currentTarget.style.display = 'none' }} />
+        : <span className="text-3xl">{def.emoji}</span>}
+    </div>
+  )
+}
+
+function BallItem({ instance, jimmyX }) {
+  const def = getItem(instance.itemId)
+  if (!def) return null
+  const now = Date.now()
+  const placed = new Date(instance.placedAt).getTime()
+  const expires = new Date(instance.expiresAt).getTime()
+  const fading = (now - placed) / (expires - placed) > 0.7
+  const heightPx = def.spriteHeightPx ?? 44
+  const bottomPx = def.bottomPx ?? 40
+  const bouncing = Math.abs(jimmyX - instance.x) < 14
+  return (
+    <div
+      className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
+      style={{
+        left: `${instance.x}%`,
+        bottom: `${bottomPx}px`,
+        zIndex: 1,
+        transform: bouncing ? undefined : 'translateX(-50%)',
+        animation: bouncing ? 'ballBounce 0.45s ease-in-out infinite' : 'none',
+      }}
+      aria-hidden="true"
+    >
+      {def.sprite
+        ? <img src={def.sprite} alt="" style={{ height: `${heightPx}px`, width: 'auto' }} onError={e => { e.currentTarget.style.display = 'none' }} />
+        : <span className="text-3xl">{def.emoji}</span>}
     </div>
   )
 }
@@ -168,8 +256,7 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
 
   return (
     <div className="w-full">
-      {/* Inject smell keyframes once */}
-      <style>{smellKeyframes}</style>
+      <style>{habitatKeyframes}</style>
 
       {/* Habitat */}
       <div className="relative h-48 w-full rounded-2xl overflow-hidden">
@@ -177,9 +264,14 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
         <div className="absolute bottom-0 left-0 right-0 h-12 bg-green-500" />
 
         {/* Placed items — behind Jimmy (cosmetics render as sprite overlays, not here) */}
-        {activeItems.filter(inst => getItem(inst.itemId)?.type !== 'cosmetic').map(inst => (
-          <HabitatItem key={inst.instanceId} instance={inst} />
-        ))}
+        {activeItems.filter(inst => getItem(inst.itemId)?.type !== 'cosmetic').map(inst => {
+          const def = getItem(inst.itemId)
+          if (!def) return null
+          if (def.layer === 'sky' && def.animated === 'drift') return <CloudItem key={inst.instanceId} instance={inst} />
+          if (def.layer === 'sky') return <SkyItem key={inst.instanceId} instance={inst} />
+          if (def.interactive === 'bounce') return <BallItem key={inst.instanceId} instance={inst} jimmyX={anim.x} />
+          return <HabitatItem key={inst.instanceId} instance={inst} />
+        })}
 
         {/* Poops */}
         {poops.map(poop => (
