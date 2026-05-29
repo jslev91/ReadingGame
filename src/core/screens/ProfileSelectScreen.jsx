@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useProfiles } from '../core/hooks/useProfiles'
+import { useProfiles } from '../hooks/useProfiles'
 import CreateProfileScreen from './CreateProfileScreen'
 
 function ProfileCard({ profile, onSelect, onDelete }) {

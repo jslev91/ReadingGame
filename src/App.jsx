@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { getGlobal } from './core/services/storage'
 import TestModeSplash from './core/components/TestModeSplash'
-import ProfileSelectScreen from './screens/ProfileSelectScreen'
-import HomeScreen from './screens/HomeScreen'
-import GameScreen from './screens/GameScreen'
-import SessionSummaryScreen from './screens/SessionSummaryScreen'
-import ShopScreen from './screens/ShopScreen'
-import ProgressScreen from './screens/ProgressScreen'
+import ProfileSelectScreen from './core/screens/ProfileSelectScreen'
+import HomeScreen from './core/screens/HomeScreen'
+import GameScreen from './subjects/phonics/screens/GameScreen'
+import SessionSummaryScreen from './core/screens/SessionSummaryScreen'
+import ShopScreen from './core/screens/ShopScreen'
+import ProgressScreen from './subjects/phonics/screens/ProgressScreen'
 
 const TEST_MODE = new URLSearchParams(window.location.search).get('testMode') === '1'
 

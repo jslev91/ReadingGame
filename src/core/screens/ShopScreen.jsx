@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ITEMS } from '../data/items'
-import { usePet } from '../core/hooks/usePet'
+import { ITEMS } from '../../data/items'
+import { usePet } from '../hooks/usePet'
 
 function CardLabel({ reason }) {
   if (reason === 'coming_soon') return <span className="text-xs text-gray-400 mt-1">Coming soon</span>
