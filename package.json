@@ -6,8 +6,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "build:maths": "vite build --config vite.maths.config.js",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "preview:maths": "vite preview --config vite.maths.config.js --outDir dist-maths"
   },
   "dependencies": {
     "react": "^19.2.6",
