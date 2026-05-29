@@ -128,7 +128,7 @@ function SkyItem({ instance }) {
   return (
     <div
       className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
-      style={{ top: '2%', left: `${instance.x}%`, transform: 'translateX(-50%)', zIndex: 1 }}
+      style={{ top: '2%', left: '12%', transform: 'translateX(-50%)', zIndex: 0 }}
       aria-hidden="true"
     >
       {def.sprite
