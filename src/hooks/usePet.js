@@ -168,6 +168,7 @@ export function usePet(userId) {
       ...DEFAULTS,
       ...raw,
       inventory: { ...DEFAULTS.inventory, ...rawInv, tools },
+      coins: TEST_MODE ? Math.max(raw.coins ?? 0, 500) : (raw.coins ?? DEFAULTS.coins),
     }
     savedRef.current = saved
     return applyDecay(saved)
