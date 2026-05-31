@@ -2,6 +2,20 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
+
+function renameMathsHtml() {
+  return {
+    name: 'rename-maths-html',
+    apply: 'build',
+    closeBundle() {
+      const src = path.resolve('dist-maths/maths.html')
+      const dest = path.resolve('dist-maths/index.html')
+      if (fs.existsSync(src)) fs.renameSync(src, dest)
+    },
+  }
+}
 
 export default defineConfig({
   plugins: [
@@ -22,6 +36,7 @@ export default defineConfig({
         ],
       },
     }),
+    renameMathsHtml(),
   ],
   build: {
     outDir: 'dist-maths',
