@@ -25,8 +25,8 @@ export const ITEMS = [
     emoji: '🛁',
     effect: {
       stat: 'cleanliness',
-      ratePerMinute: 0.6,
-      duration: 20,
+      ratePerMinute: 8,
+      duration: 10,
     },
     maxActive: 1,
     consumedOnUse: true,
