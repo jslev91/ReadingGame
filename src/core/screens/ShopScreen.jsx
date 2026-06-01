@@ -65,6 +65,8 @@ function ConfirmModal({ item, onConfirm, onCancel }) {
   )
 }
 
+const TEST_MODE = new URLSearchParams(window.location.search).get('testMode') === '1'
+
 export default function ShopScreen({ userId, onBack }) {
   const pet = usePet(userId)
   const [pending, setPending] = useState(null)
@@ -121,6 +123,16 @@ export default function ShopScreen({ userId, onBack }) {
           />
         ))}
       </div>
+
+      {/* Test mode: clear all active items */}
+      {TEST_MODE && (
+        <button
+          onClick={() => { pet.clearItems(); setFlash('All items cleared') ; setTimeout(() => setFlash(null), 2000) }}
+          className="w-full py-3 rounded-2xl border-2 border-red-200 text-red-500 font-bold text-sm"
+        >
+          🧪 Remove All Items
+        </button>
+      )}
 
       {/* Confirmation modal */}
       {pending && (

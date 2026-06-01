@@ -320,6 +320,10 @@ export function usePet(userId) {
     return { success: true }
   }
 
+  function clearItems() {
+    save(prev => ({ ...prev, activeItems: [] }))
+  }
+
   function removePoop(poopId) {
     save(prev => {
       const tools = (prev.inventory.tools ?? []).map(t =>
@@ -346,6 +350,7 @@ export function usePet(userId) {
     canAfford,
     canPurchase,
     purchaseItem,
+    clearItems,
     removePoop,
     hasTool,
     getToolUses,
