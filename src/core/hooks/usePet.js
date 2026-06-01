@@ -154,6 +154,19 @@ function uuid() {
   return Math.random().toString(36).slice(2) + Date.now().toString(36)
 }
 
+// Pick an x position (10–80) that is at least 15 units from existing ground items.
+// Sky/horizon items are excluded from the check since their x is irrelevant to rendering.
+function pickX(existingItems) {
+  const occupied = existingItems
+    .filter(inst => !getItem(inst.itemId)?.layer)
+    .map(inst => inst.x)
+  for (let i = 0; i < 20; i++) {
+    const x = 10 + Math.floor(Math.random() * 71)
+    if (occupied.every(ox => Math.abs(ox - x) >= 15)) return x
+  }
+  return 10 + Math.floor(Math.random() * 71)
+}
+
 export function usePet(userId) {
   const savedRef = useRef(null)
 
@@ -290,7 +303,7 @@ export function usePet(userId) {
           {
             instanceId: uuid(),
             itemId,
-            x: 10 + Math.floor(Math.random() * 71),
+            x: pickX(prev.activeItems),
             placedAt: new Date(now).toISOString(),
             expiresAt,
           },

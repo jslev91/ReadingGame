@@ -335,14 +335,24 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
         <div className="absolute inset-0 bg-sky-300" />
         <div className="absolute bottom-0 left-0 right-0 h-12 bg-green-500" />
 
-        {/* Placed items — behind Jimmy (cosmetics render as sprite overlays, not here) */}
-        {activeItems.filter(inst => getItem(inst.itemId)?.type !== 'cosmetic').map(inst => {
+        {/* Sky/horizon items first so they always paint behind ground items */}
+        {activeItems.filter(inst => {
           const def = getItem(inst.itemId)
-          if (!def) return null
+          return def && def.type !== 'cosmetic' && (def.layer === 'sky' || def.layer === 'horizon')
+        }).map(inst => {
+          const def = getItem(inst.itemId)
           if (def.layer === 'sky' && def.animated === 'drift') return <CloudItem key={inst.instanceId} instance={inst} />
           if (def.layer === 'sky' && def.animated === 'balloon') return <BalloonItem key={inst.instanceId} instance={inst} />
           if (def.layer === 'sky') return <SkyItem key={inst.instanceId} instance={inst} />
-          if (def.layer === 'horizon') return <RainbowItem key={inst.instanceId} instance={inst} />
+          return <RainbowItem key={inst.instanceId} instance={inst} />
+        })}
+        {/* Ground items after — always paint on top of sky items */}
+        {activeItems.filter(inst => {
+          const def = getItem(inst.itemId)
+          return def && def.type !== 'cosmetic' && !def.layer
+        }).map(inst => {
+          const def = getItem(inst.itemId)
+          if (!def) return null
           if (def.interactive === 'bounce') return <BallItem key={inst.instanceId} instance={inst} jimmyX={anim.x} />
           return <HabitatItem key={inst.instanceId} instance={inst} />
         })}
