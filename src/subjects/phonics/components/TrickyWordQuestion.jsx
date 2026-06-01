@@ -1,13 +1,16 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { speak } from '../../../core/services/tts'
 
 export default function TrickyWordQuestion({ targetWord, distractors, status = 'seen', onCorrect, onWrong, locked }) {
   const showWord = status === 'seen' // hide when familiar or known — test recall
   const [phase, setPhase] = useState('presentation') // 'presentation' | 'question'
   const [answered, setAnswered] = useState(null)     // null | 'correct' | word tapped
-  const options = useRef(
-    [targetWord, ...distractors].sort(() => Math.random() - 0.5)
-  ).current
+  // useMemo (not useRef) so options recompute if targetWord changes — prevents a StrictMode
+  // double-effect-run from showing a stale target in the presentation but absent from options.
+  const options = useMemo(
+    () => [targetWord, ...distractors].sort(() => Math.random() - 0.5),
+    [targetWord.word] // eslint-disable-line react-hooks/exhaustive-deps
+  )
 
   useEffect(() => {
     const cancel = speak('', targetWord.audioFallback)
