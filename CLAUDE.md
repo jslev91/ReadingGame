@@ -17,18 +17,32 @@ A phonics learning PWA for children aged 5–6, guided by a parent or teacher. T
 ## Folder structure
 ```
 src/
-  data/        ← phonics curriculum (phonics.js, words.js)
-  services/    ← tts.js, storage.js, questionSelector.js
-  hooks/       ← usePet.js, useProgress.js, useJimmyAnimation.js
-  components/  ← Jimmy.jsx, PhonemeQuestion.jsx, InitialSoundQuestion.jsx, BlendingQuestion.jsx, SpellingQuestion.jsx
-  screens/     ← HomeScreen.jsx, GameScreen.jsx, SessionSummaryScreen.jsx, ShopScreen.jsx, ProgressScreen.jsx
-  context/     ← React contexts (unused so far)
-docs/          ← session briefings and reference material
+  core/
+    components/   ← Jimmy.jsx, ProfileAvatar.jsx, TestModeSplash.jsx
+    data/         ← items.js
+    hooks/        ← usePet.js, useJimmyAnimation.js, useProfiles.js
+    screens/      ← HomeScreen.jsx, ParentAreaScreen.jsx, SessionSummaryScreen.jsx,
+                     ShopScreen.jsx, ProfileSelectScreen.jsx, CreateProfileScreen.jsx
+    services/     ← tts.js, storage.js, sounds.js
+  subjects/
+    phonics/
+      components/ ← PhonemeQuestion.jsx, InitialSoundQuestion.jsx, BlendingQuestion.jsx,
+                     SpellingQuestion.jsx, TrickyWordQuestion.jsx
+      data/       ← phonics.js, words.js, trickyWords.js
+      hooks/      ← useProgress.js
+      screens/    ← GameScreen.jsx, ProgressScreen.jsx
+      services/   ← questionSelector.js, cosmeticSprites.js
+    maths/        ← separate subject (curriculum.js, MathsQuestion, GameScreen, ProgressScreen)
+  apps/
+    phonics/      ← App.jsx + main.jsx (standalone phonics PWA entry)
+    maths/        ← App.jsx + main.jsx (standalone maths PWA entry)
+  App.jsx         ← root app (combined entry)
+  main.jsx
 ```
 
 ## Services
 
-### `src/services/tts.js`
+### `src/core/services/tts.js`
 Exported `speak(audioKey, fallbackText)` function. Plays `/audio/${audioKey}.wav` first; falls back to Web Speech API speaking `fallbackText` if the file is missing or fails. Web Speech API: prefers Google `en-GB` voice, rate 0.82, 100ms iOS delay. **Never call `speechSynthesis` or `new Audio()` directly in a component.**
 
 Recorded `.wav` files live in `public/audio/`. All 50 graphemes have recordings — TTS fallback is used for whole words (blending/spelling) and all tricky words.
@@ -37,10 +51,13 @@ Voices are cached at module load via `voiceschanged` event so `getBestVoice()` n
 
 The cancel function returned by `speak()` clears both the Audio element and any pending TTS timer (100ms delay). Always use it as a `useEffect` cleanup. `speakBlending` in `BlendingQuestion` tracks cancel functions from all started `speak()` calls so `cancelAll` stops active audio, not just pending timeouts.
 
-### `src/services/storage.js`
-Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`. Current user: `{ id: "guest", name: "Player" }`.
+### `src/core/services/sounds.js`
+Non-speech audio feedback. Exports `playCorrectSound()` — plays a short ascending two-note chime (C5 → G5, ~600ms total) via Web Audio API. Reuses a single `AudioContext` instance across calls. Called from `GameScreen.handleCorrect()` on every correct answer. Errors are silently swallowed — audio is non-critical.
 
-### `src/services/questionSelector.js`
+### `src/core/services/storage.js`
+Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`.
+
+### `src/subjects/phonics/services/questionSelector.js`
 Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next using these rules (in priority order):
 1. Work through Phase 2 graphemes in Letters and Sounds order; don't start Phase 3 until 6 Phase 2 graphemes are `practising` or `mastered`
 2. A new grapheme is introduced only when **zero** `introduced` graphemes remain — every seen grapheme must have consolidated to `practising` or `mastered` first. This prevents the child from accumulating an overwhelming backlog of new sounds.
@@ -57,7 +74,7 @@ Also exports `PHONEME_ALIASES` (used by SpellingQuestion to exclude phoneme alia
 
 ## Data
 
-### `src/data/phonics.js`
+### `src/subjects/phonics/data/phonics.js`
 Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
 
 Each entry has two audio-related fields:
@@ -70,7 +87,7 @@ Always call `speak(entry.audioKey, entry.ttsText)` — never speak the grapheme 
 
 Per-user grapheme status (`"unseen" | "introduced" | "practising" | "mastered"`) is stored separately via the storage service, not in this file.
 
-### `src/data/items.js`
+### `src/core/data/items.js`
 Shop catalogue. Single source of truth for all purchasable items.
 
 Data shape per item:
@@ -118,7 +135,7 @@ Current catalogue:
 
 Exports `ITEMS` array and `getItem(id)`.
 
-### `src/data/trickyWords.js`
+### `src/subjects/phonics/data/trickyWords.js`
 26 high-frequency irregular words from Letters and Sounds, in phase order. Data shape:
 ```js
 { word: 'the', phase: 2, audioFallback: 'the' }
@@ -127,7 +144,7 @@ Phase 2 (5): the, to, no, go, I. Phase 3 (12): he, she, we, me, be, was, my, you
 
 Exports `TRICKY_WORDS` array and `getTrickyWord(word)`.
 
-### `src/data/words.js`
+### `src/subjects/phonics/data/words.js`
 50 Phase 2 CVC words + 35 Phase 4 CCVC/CVCC words. Each entry:
 ```js
 { word: "sat", graphemes: ["s", "a", "t"], phase: 2, minIntroduced: 3 }
@@ -138,7 +155,7 @@ Exports `selectBlendingWord(progressMap)` which returns `{ wordEntry, distractor
 
 ## Hooks
 
-### `src/hooks/usePet.js`
+### `src/core/hooks/usePet.js`
 Persisted under `jimmy:{userId}:petState`. State shape:
 ```js
 {
@@ -201,7 +218,7 @@ Exposes: `stats`, `mood`, `jimmySleeping`, `onCorrect(coinReward?)`, `onWrong()`
 `canPurchase` returns `{ canBuy, reason }`. Reasons: `insufficient_coins`, `already_active`, `already_owned` (tool with uses > 0), `coming_soon`. Tools with `usesRemaining === 0` can be repurchased.
 `purchaseItem` for tools pushes `{ id, usesRemaining: def.maxUses ?? 10 }`.
 
-### `src/hooks/useProgress.js`
+### `src/subjects/phonics/hooks/useProgress.js`
 Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`. Tricky word progress stored separately under `jimmy:{userId}:trickyWordProgress`.
 
 **Grapheme state shape:**
@@ -220,12 +237,14 @@ Transitions: `unseen → seen` on first presentation; `seen → familiar` at 3 c
 
 **`selectNextTrickyWord(trickyProgressMap)`** — exported standalone function (not a hook method). Returns `{ targetWord, distractors: [word, word] }` or `null` if no eligible words. Prefers words not yet `familiar`; 70% chance of targeting the current unfamiliar word, 30% review of seen pool. Distractors come from seen words first, then upcoming unseen words.
 
-Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `recordCorrect(grapheme)`, `recordWrong(grapheme)`, `trickyWordProgressMap`, `recordTrickyPresented(word)`, `recordTrickyCorrect(word)`, `recordTrickyWrong(word)`.
+Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `recordCorrect(grapheme)`, `recordWrong(grapheme)`, `setGraphemeStatus(grapheme, status)`, `trickyWordProgressMap`, `recordTrickyPresented(word)`, `recordTrickyCorrect(word)`, `recordTrickyWrong(word)`, `setTrickyWordStatus(word, status)`.
 
-### `src/services/cosmeticSprites.js`
+`setGraphemeStatus` / `setTrickyWordStatus` are admin helpers used by the editable ProgressScreen. They set both `status` and a representative `correctCount` (mastered→7, practising/familiar→3, introduced/seen→1, unseen→0).
+
+### `src/subjects/phonics/services/cosmeticSprites.js`
 Maps cosmetic item ids to their overlay sprite paths (`/images/cosmetics/*.png`). Export `getCosmeticSprite(itemId)` → path string or `null`. Add new entries here when new cosmetic sprites arrive.
 
-### `src/hooks/useJimmyAnimation.js`
+### `src/core/hooks/useJimmyAnimation.js`
 Drives Jimmy's movement and pose independently of game logic. Internal state:
 ```js
 { pose, direction: 'left'|'right', x: 5–90, mode: 'wandering'|'resting'|'reacting' }
@@ -238,7 +257,7 @@ Drives Jimmy's movement and pose independently of game logic. Internal state:
 
 ## Components
 
-### `src/components/Jimmy.jsx`
+### `src/core/components/Jimmy.jsx`
 The Jimmy habitat. Uses `useJimmyAnimation` internally. Exposed via `forwardRef` + `useImperativeHandle` so callers can call `ref.current.react(pose)` to trigger reactions without managing animation state.
 
 A fixed-height (`h-48`) rectangular zone with sky-blue background and green grass strip. Jimmy's sprite is absolutely positioned at `left: ${x}%` with `transition: left 0.4s linear`. Direction flipping uses `transform: scaleX(-1)` — no separate right-facing sprites needed.
@@ -269,21 +288,21 @@ Poop rendering: `PoopItem` component — a 64px min-size button at `poop.x%` on 
 
 Toast pattern (HomeScreen and GameScreen): `{ message, x }` state, absolutely positioned above habitat at `left: ${x}%`, auto-dismissed after 1500ms via `setTimeout`.
 
-### `src/components/PhonemeQuestion.jsx`
+### `src/subjects/phonics/components/PhonemeQuestion.jsx`
 Props: `entry`, `distractors`, `onCorrect`, `onWrong`, `locked`.
 Speaks the phoneme on mount. Shows 🔊 replay. Grapheme buttons in a `flex flex-wrap` row — 3, 4, or 5 buttons depending on `distractors.length`. At 5 options each button gets `flexBasis: calc(33% - 0.5rem)` so they wrap 3+2. One attempt only.
 
-### `src/components/InitialSoundQuestion.jsx`
+### `src/subjects/phonics/components/InitialSoundQuestion.jsx`
 Props: same as PhonemeQuestion. Child hears a whole word and taps its target grapheme. TTS fallback intentional. Question wording is position-aware via `getSegmentInfo(entry)`:
 - Grapheme at start → "What sound is at the beginning of sat?"
 - Grapheme at end → "What sound is at the end of duck?"
 - Grapheme in middle → "What sound do you hear in rain?"
 
-### `src/components/BlendingQuestion.jsx`
+### `src/subjects/phonics/components/BlendingQuestion.jsx`
 Props: `wordEntry`, `distractors` (2 word objects), `onCorrect`, `onWrong`, `locked`.
 Speaks each grapheme's phoneme in sequence (500ms gaps) then speaks the whole word (700ms after last phoneme). Child taps the correct written word from three options. Distractors share at least one grapheme with the target. Same anti-guessing rules.
 
-### `src/components/SpellingQuestion.jsx`
+### `src/subjects/phonics/components/SpellingQuestion.jsx`
 Props: `wordEntry`, `onCorrect`, `onWrong`, `locked`.
 Speaks the whole word on mount, then phonemes one by one (800ms gap before phonemes). 🔊 replay button. Picks its own 2 grapheme distractors from Phase 2 (graphemes not in the word).
 
@@ -296,21 +315,23 @@ Tap handling (per-position, anti-guessing):
 - Wrong: tapped button flashes red, correct button flashes green for 800ms, correct grapheme auto-fills blank (grey), records error. The wrong button is only consumed (greyed) if its grapheme is NOT needed for a later position — preventing a child from being locked out by tapping a grapheme that appears later in the word.
 - Once all positions filled: fires `onCorrect()` if no errors, `onWrong()` if any errors. GameScreen's `advance()` adds the inter-question delay.
 
-### `src/components/TrickyWordQuestion.jsx`
-Props: `targetWord` (tricky word object), `distractors` (array of 2 word objects), `onCorrect`, `onWrong`, `locked`.
+### `src/subjects/phonics/components/TrickyWordQuestion.jsx`
+Props: `targetWord` (tricky word object), `distractors` (array of 2 word objects), `status` (`"seen"|"familiar"|"known"`, default `"seen"`), `onCorrect`, `onWrong`, `locked`.
 
 Two-phase presentation:
 - **Phase 1 (1500ms):** target word shown large (`text-6xl font-bold`), TTS speaks it immediately. No buttons.
-- **Phase 2:** word shown smaller above 3 vertically-stacked buttons. "Which one did you see?" prompt (parent reads aloud). 🔊 replay button. Shuffled options (target + 2 distractors).
+- **Phase 2:** 3 vertically-stacked word buttons. `showWord` (`status === 'seen'`) displays the target word above the buttons — hidden when familiar/known to test recall. 🔊 replay button. Shuffled options (target + 2 distractors).
+
+Options computed via `useMemo([targetWord.word])` (not `useRef`) so they recompute if `targetWord` changes after mount — prevents a StrictMode double-effect-run from showing a stale word in the presentation that is absent from the options.
 
 Tap handling: anti-guessing rules — one attempt, wrong reveals correct (green), tapped wrong button highlights red. `onWrong` fires 800ms after wrong tap (for animation). `onCorrect` fires immediately.
 
 ## Screens
 
-### `src/screens/HomeScreen.jsx`
-Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 64px), ⭐ progress button (top-left, 64px), and reset button (bottom-right, small/hidden).
+### `src/core/screens/HomeScreen.jsx`
+Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 64px), ⭐ progress button (top-left, 64px), and reset button (bottom-right, small/hidden). Long-press ⚙️ bottom-left (800ms) opens `ParentAreaScreen`.
 
-### `src/screens/GameScreen.jsx`
+### `src/subjects/phonics/screens/GameScreen.jsx`
 Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned })` after the 10th question.
 
 Question type selection per question (weighted random, evaluated each time, ineligible types get weight 0 and others rescale):
@@ -322,24 +343,33 @@ Question type selection per question (weighted random, evaluated each time, inel
 
 `questionIndex` dep array pattern — see comment in code. `progressMap` intentionally absent; adding it would cause an infinite loop via `recordPresented`.
 
-Holds a `jimmyRef` and calls `jimmyRef.current.react('happy'/'sad')` on answer.
+Holds a `jimmyRef` and calls `jimmyRef.current.react('happy'/'sad')` on answer. Calls `playCorrectSound()` immediately on correct answer.
 Progress recorded only for phoneme/initial questions — blending and spelling don't map to a single grapheme.
 Coin reward is 0 (not 1) when `pet.jimmySleeping`.
 
-### `src/screens/SessionSummaryScreen.jsx`
+### `src/core/screens/SessionSummaryScreen.jsx`
 Shown after 10 questions. Displays Jimmy habitat (static pose based on score), coins earned, a score message, and "Play again" / "Home" buttons.
 - ≥ 7 correct → `happy` pose, "Amazing! Jimmy is so happy! 🌟"
 - ≥ 4 correct → `idle` pose, "Well done! Keep going! 😊"
 - < 4 correct → `sad` pose, "Good try! Practice makes perfect! 💪"
 
-### `src/screens/ShopScreen.jsx`
+### `src/core/screens/ShopScreen.jsx`
 2-column item grid. Each card shows emoji, name, cost. States: available (tappable), can't afford (cost in red), already active/owned (greyed, labelled), coming soon (greyed, no price). Tapping an available card shows a confirmation modal (emoji, name, cost, Buy/Cancel). On confirm calls `pet.purchaseItem(itemId)`. Flash message on success/failure. Calls `usePet` internally (same as HomeScreen).
 
-### `src/screens/ProgressScreen.jsx`
-Shows all Phase 2 and Phase 3 graphemes in Letters and Sounds order, colour-coded by status: grey = unseen, yellow = learning (introduced), orange = practising, green = mastered. Summary count chips at the top (Learning / Practising / Mastered). Graphemes laid out in a 6-column grid per phase. Uses `useProgress(GUEST.id)` directly — read-only, no game logic. Accessible via ⭐ button on HomeScreen.
+### `src/subjects/phonics/screens/ProgressScreen.jsx`
+Read-only (⭐ button from HomeScreen) and editable (parent admin "Edit Progress") views.
+
+**Graphemes section:** Phase 2 and Phase 3 graphemes in curriculum order, 6-column grid, colour-coded — grey=unseen, yellow=introduced, orange=practising, green=mastered. Summary chip row above (Learning / Practising / Mastered counts).
+
+**Tricky words section:** Phase 2, 3, and 4 tricky words, 4-column grid, same colour scheme — grey=unseen, yellow=seen, orange=familiar, green=known. Separate summary chip row (Seen / Familiar / Known counts).
+
+In editable mode (`editable` prop): tapping any grapheme tile cycles `unseen→introduced→practising→mastered`; tapping any tricky word tile cycles `unseen→seen→familiar→known`. Title becomes "Edit Progress", hint "Tap any tile to cycle its status".
+
+### `src/core/screens/ParentAreaScreen.jsx`
+Bottom-sheet modal. Opened from HomeScreen via long-press ⚙️ (800ms). Buttons: Switch Profile, Edit Progress (→ editable ProgressScreen), Reset Progress (confirm), Delete Profile (confirm). Profile colour dot + name shown at top.
 
 ## Navigation
-React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"` | `"progress"`). No router library.
+React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"` | `"progress"` | `"editProgress"` | `"profiles"` | `"createProfile"`). No router library.
 
 ## Anti-guessing principle — critical design constraint
 - Each question gets exactly **one attempt**
@@ -379,9 +409,9 @@ Append `?testMode=1` to the app URL to compress all pet timings by 300× (minute
 - **Session 6:** Poop generation (45–90 min intervals, max 3, random x); cleanliness decay multiplier per poop (×1.5 stackable); PoopItem with CSS smell animation; poop tap with shovel ownership check + toast; bath activated as placed consumable (0.6/min, 20 min); shovel activated (permanent tool); cosmetics changed to 4-day timed items (not permanent); coin economy rebalanced (cosmetic prices increased)
 - **Session 7:** Shovel durability (10 uses, use count display, legacy migration); stat bar direction arrows (▲▼►); empty-bar consequences (sleep pose, sluggish wander, grubby filter, faster poops, halved coins); confusable distractor engine (CONFUSABLE_PAIRS); dynamic option count (3/4/5 by mastery, flex-wrap buttons); 35 Phase 4 CCVC/CVCC words; SpellingQuestion component; question weights updated to 40/20/20/20; sleep/dirty/hat sprites processed
 - **Session 8:** Cosmetic overlays (hat renders on Jimmy's head, flips with direction, sprite wrapper pattern); `cosmeticSprites.js` service; `overlayStyle` in items.js; hat unlocked, scarf still comingSoon; cosmetics excluded from habitat floor rendering and hidden when sleeping; 26 tricky words in `trickyWords.js`; tricky word progress tracking in `useProgress.js` (separate storage key, unseen→seen→familiar→known); `TrickyWordQuestion` component (1500ms presentation phase); question weights 35/20/15/15/15; `selectNextTrickyWord` exported from useProgress; decay system rebuilt with `pendingDecay` fractional accumulation (all stats now work correctly in real time); food rate 2/min; `introduced` graphemes weighted 70% in question selection; `ProgressScreen` showing all grapheme statuses; spelling bug fixes (alias exclusion from distractors, grapheme-needed-later not consumed on wrong tap); stat bar numeric values; `saveReward` preserves decay timestamp; decay rates rebalanced (energy −70/day, hunger −50/day, cleanliness −20/day); introduction pacing tightened (`canIntroduceNew` now requires zero `introduced` graphemes before unlocking next sound)
+- **Session 9:** Dev/test branch strategy (`dev` → `test` → `main`); `?testMode=1` URL param replaces hardcoded flag; test mode splash screen (prominent normal-mode escape, small continue link); user profiles (`ProfileSelectScreen`, create with colour picker, guest data auto-migration, profile indicator on HomeScreen); parent settings panel (long-press ⚙️ bottom-left 800ms — switch profile, reset progress, delete profile, edit graphemes); grapheme editor (`setGraphemeStatus` in `useProgress`, editable `ProgressScreen` — tap tiles to cycle unseen→introduced→practising→mastered); scarf cosmetic unlocked (flood-fill background removal, `overlayStyle` tuned); full folder restructure into `src/core/` / `src/subjects/phonics/` / `src/apps/`
+- **Session 10:** Notification hooks (Stop + Notification events → Windows balloon tips); fixed TrickyWordQuestion bug where presented word was absent from options (StrictMode double-effect-run: switched `useRef` to `useMemo([targetWord.word])`); `sounds.js` service with `playCorrectSound()` (C5→G5 Web Audio chime, called on every correct answer); tricky words added to ProgressScreen (Phase 2/3/4 grids, own summary counts, editable); `setTrickyWordStatus` added to `useProgress`; ParentAreaScreen "Edit Graphemes" → "Edit Progress"
 
-- **Session 9:** Dev/test branch strategy (`dev` → `test` → `main`); `?testMode=1` URL param replaces hardcoded flag; test mode splash screen (prominent normal-mode escape, small continue link); user profiles (`ProfileSelectScreen`, create with colour picker, guest data auto-migration, profile indicator on HomeScreen); parent settings panel (long-press ⚙️ bottom-left 800ms — switch profile, reset progress, delete profile, edit graphemes); grapheme editor (`setGraphemeStatus` in `useProgress`, editable `ProgressScreen` — tap tiles to cycle unseen→introduced→practising→mastered); scarf cosmetic unlocked (flood-fill background removal, `overlayStyle` tuned)
-
-## Coming in session 10
+## Coming in session 11
 - Phase 3 audio recordings (currently falling back to TTS)
 - Possible: animated reward sequences, streak tracking, difficulty calibration
