@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePet } from '../../../core/hooks/usePet'
+import { playCorrectSound } from '../../../core/services/sounds'
 import { useProgress, selectNextTrickyWord } from '../hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
 import { selectBlendingWord } from '../data/words'
@@ -103,6 +104,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
   function handleCorrect() {
     if (locked) return
     setLocked(true)
+    playCorrectSound()
     const coinReward = pet.jimmySleeping ? 0 : 1
     pet.onCorrect(coinReward)
     if (question.type === 'tricky') {
