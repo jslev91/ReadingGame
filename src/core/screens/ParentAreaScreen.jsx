@@ -27,7 +27,7 @@ export default function ParentAreaScreen({ profile, onClose, onSwitchProfile, on
           onClick={onEditGraphemes}
           className="w-full py-3 rounded-2xl border-2 border-blue-200 text-blue-600 font-bold"
         >
-          Edit Graphemes
+          Edit Progress
         </button>
 
         {confirm === 'reset' ? (

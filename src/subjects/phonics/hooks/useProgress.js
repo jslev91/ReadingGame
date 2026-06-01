@@ -214,6 +214,14 @@ export function useProgress(userId) {
     })
   }, [progressMap])
 
+  const setTrickyWordStatus = useCallback((word, status) => {
+    const correctCount = status === 'known' ? 7 : status === 'familiar' ? 3 : status === 'seen' ? 1 : 0
+    saveTricky({
+      ...trickyWordProgressMap,
+      [word]: { status, correctCount, lastSeen: new Date().toISOString() },
+    })
+  }, [trickyWordProgressMap])
+
   return {
     progressMap,
     getProgress,
@@ -225,5 +233,6 @@ export function useProgress(userId) {
     recordTrickyPresented,
     recordTrickyCorrect,
     recordTrickyWrong,
+    setTrickyWordStatus,
   }
 }
