@@ -153,7 +153,7 @@ export const ITEMS = [
     maxActive: 1,
     consumedOnUse: false,
     spriteHeightPx: 64,
-    bottomPx: -38,
+    bottomPx: 22,
   },
   {
     id: 'ball',
