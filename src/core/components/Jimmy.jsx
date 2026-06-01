@@ -1,4 +1,4 @@
-import { forwardRef, useImperativeHandle } from 'react'
+import { forwardRef, useImperativeHandle, useState, useEffect } from 'react'
 import { useJimmyAnimation } from '../hooks/useJimmyAnimation'
 import { getItem } from '../data/items'
 import { getCosmeticSprite } from '../../subjects/phonics/services/cosmeticSprites'
@@ -58,6 +58,14 @@ const habitatKeyframes = `
 @keyframes ballBounce {
   0%, 100% { transform: translateX(-50%) translateY(0); }
   50%       { transform: translateX(-50%) translateY(-22px); }
+}
+@keyframes balloonLtr {
+  from { left: -20%; }
+  to   { left: 115%; }
+}
+@keyframes balloonRtl {
+  from { left: 115%; }
+  to   { left: -20%; }
 }
 `
 
@@ -197,6 +205,70 @@ function BallItem({ instance, jimmyX }) {
   )
 }
 
+function RainbowItem({ instance }) {
+  const def = getItem(instance.itemId)
+  if (!def) return null
+  const now = Date.now()
+  const placed = new Date(instance.placedAt).getTime()
+  const expires = new Date(instance.expiresAt).getTime()
+  const fading = (now - placed) / (expires - placed) > 0.7
+  return (
+    <div
+      className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
+      style={{ bottom: '48px', left: '50%', transform: 'translateX(-50%)', zIndex: 0, width: '85%' }}
+      aria-hidden="true"
+    >
+      {def.sprite
+        ? <img src={def.sprite} alt="" style={{ width: '100%', height: 'auto' }} onError={e => { e.currentTarget.style.display = 'none' }} />
+        : <span className="text-3xl">{def.emoji}</span>}
+    </div>
+  )
+}
+
+function BalloonItem({ instance }) {
+  const def = getItem(instance.itemId)
+  const [dir, setDir] = useState('ltr')
+  const [flying, setFlying] = useState(true)
+
+  useEffect(() => {
+    const ms = flying ? 90_000 : 45_000
+    const t = setTimeout(() => {
+      if (flying) {
+        setFlying(false)
+      } else {
+        setDir(d => d === 'ltr' ? 'rtl' : 'ltr')
+        setFlying(true)
+      }
+    }, ms)
+    return () => clearTimeout(t)
+  }, [flying])
+
+  if (!def || !flying) return null
+  const now = Date.now()
+  const placed = new Date(instance.placedAt).getTime()
+  const expires = new Date(instance.expiresAt).getTime()
+  const fading = (now - placed) / (expires - placed) > 0.7
+  const heightPx = def.spriteHeightPx ?? 80
+  return (
+    <div
+      className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
+      style={{
+        top: '8%',
+        zIndex: 0,
+        animation: `${dir === 'ltr' ? 'balloonLtr' : 'balloonRtl'} 90s linear forwards`,
+      }}
+      aria-hidden="true"
+    >
+      <img
+        src={def.sprite}
+        alt=""
+        style={{ height: `${heightPx}px`, width: 'auto', transform: dir === 'rtl' ? 'scaleX(-1)' : undefined }}
+        onError={e => { e.currentTarget.style.display = 'none' }}
+      />
+    </div>
+  )
+}
+
 function PoopItem({ poop, onTap }) {
   return (
     <button
@@ -268,7 +340,9 @@ const Jimmy = forwardRef(function Jimmy({ stats, mood, pose: poseProp, poops = [
           const def = getItem(inst.itemId)
           if (!def) return null
           if (def.layer === 'sky' && def.animated === 'drift') return <CloudItem key={inst.instanceId} instance={inst} />
+          if (def.layer === 'sky' && def.animated === 'balloon') return <BalloonItem key={inst.instanceId} instance={inst} />
           if (def.layer === 'sky') return <SkyItem key={inst.instanceId} instance={inst} />
+          if (def.layer === 'horizon') return <RainbowItem key={inst.instanceId} instance={inst} />
           if (def.interactive === 'bounce') return <BallItem key={inst.instanceId} instance={inst} jimmyX={anim.x} />
           return <HabitatItem key={inst.instanceId} instance={inst} />
         })}
