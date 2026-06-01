@@ -3,10 +3,12 @@ import { getGlobal } from './core/services/storage'
 import TestModeSplash from './core/components/TestModeSplash'
 import ProfileSelectScreen from './core/screens/ProfileSelectScreen'
 import HomeScreen from './core/screens/HomeScreen'
-import GameScreen from './subjects/phonics/screens/GameScreen'
 import SessionSummaryScreen from './core/screens/SessionSummaryScreen'
 import ShopScreen from './core/screens/ShopScreen'
-import ProgressScreen from './subjects/phonics/screens/ProgressScreen'
+import PhonicsGameScreen from './subjects/phonics/screens/GameScreen'
+import PhonicsProgressScreen from './subjects/phonics/screens/ProgressScreen'
+import MathsGameScreen from './subjects/maths/screens/GameScreen'
+import MathsProgressScreen from './subjects/maths/screens/ProgressScreen'
 
 const TEST_MODE = new URLSearchParams(window.location.search).get('testMode') === '1'
 
@@ -27,20 +29,30 @@ export default function App() {
     return <TestModeSplash onContinue={() => setTestSplashDone(true)} />
   }
 
+  // No subject filter — combined app shows all profiles
   if (!profile) {
-    return <ProfileSelectScreen subject="phonics" onSelect={p => { setProfile(p); setScreen('home') }} />
+    return <ProfileSelectScreen onSelect={p => { setProfile(p); setScreen('home') }} />
   }
 
   if (screen === 'profiles') {
-    return <ProfileSelectScreen subject="phonics" onSelect={p => { setProfile(p); setScreen('home') }} />
+    return <ProfileSelectScreen onSelect={p => { setProfile(p); setScreen('home') }} />
   }
 
+  // Route to the right subject's screens based on profile.subject
+  const isMaths = profile.subject === 'maths'
+  const GameScreen = isMaths ? MathsGameScreen : PhonicsGameScreen
+  const ProgressScreen = isMaths ? MathsProgressScreen : PhonicsProgressScreen
+
   if (screen === 'progress') {
-    return <ProgressScreen userId={profile.id} onBack={() => setScreen('home')} />
+    return isMaths
+      ? <ProgressScreen onBack={() => setScreen('home')} />
+      : <ProgressScreen userId={profile.id} onBack={() => setScreen('home')} />
   }
 
   if (screen === 'editProgress') {
-    return <ProgressScreen userId={profile.id} editable onBack={() => setScreen('home')} />
+    return isMaths
+      ? <ProgressScreen onBack={() => setScreen('home')} />
+      : <PhonicsProgressScreen userId={profile.id} editable onBack={() => setScreen('home')} />
   }
 
   if (screen === 'game') {

@@ -9,18 +9,36 @@ const COLOURS = [
   '#eab308',
 ]
 
-export default function CreateProfileScreen({ onCreated, onCancel }) {
+export default function CreateProfileScreen({ onCreated, onCancel, defaultSubject }) {
   const [name, setName] = useState('')
   const [colour, setColour] = useState(COLOURS[0])
+  const [subject, setSubject] = useState(defaultSubject ?? null)
 
   function handleCreate() {
     const trimmed = name.trim()
-    if (!trimmed) return
-    onCreated({ name: trimmed, colour })
+    if (!trimmed || !subject) return
+    onCreated({ name: trimmed, colour, subject })
   }
 
   return (
     <div className="w-full max-w-sm bg-white rounded-3xl p-6 shadow-md flex flex-col gap-4">
+      {/* Subject picker — only shown in combined app where no subject is pre-determined */}
+      {!defaultSubject && (
+        <div className="flex gap-3">
+          <button
+            onClick={() => setSubject('phonics')}
+            className={`flex-1 py-3 rounded-2xl border-2 font-bold text-sm transition-all ${subject === 'phonics' ? 'border-yellow-400 bg-yellow-50 text-yellow-800' : 'border-gray-200 text-gray-400'}`}
+          >
+            📚 Phonics
+          </button>
+          <button
+            onClick={() => setSubject('maths')}
+            className={`flex-1 py-3 rounded-2xl border-2 font-bold text-sm transition-all ${subject === 'maths' ? 'border-blue-400 bg-blue-50 text-blue-800' : 'border-gray-200 text-gray-400'}`}
+          >
+            🔢 Maths
+          </button>
+        </div>
+      )}
       <input
         type="text"
         placeholder="Name"
@@ -53,7 +71,7 @@ export default function CreateProfileScreen({ onCreated, onCancel }) {
         >Cancel</button>
         <button
           onClick={handleCreate}
-          disabled={!name.trim()}
+          disabled={!name.trim() || !subject}
           className="flex-1 py-3 rounded-2xl bg-yellow-400 text-yellow-900 font-bold disabled:opacity-40"
         >Create</button>
       </div>

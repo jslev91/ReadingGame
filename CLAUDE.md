@@ -412,10 +412,18 @@ Append `?testMode=1` to the app URL to compress all pet timings by 300× (minute
 - **Session 9:** Dev/test branch strategy (`dev` → `test` → `main`); `?testMode=1` URL param replaces hardcoded flag; test mode splash screen (prominent normal-mode escape, small continue link); user profiles (`ProfileSelectScreen`, create with colour picker, guest data auto-migration, profile indicator on HomeScreen); parent settings panel (long-press ⚙️ bottom-left 800ms — switch profile, reset progress, delete profile, edit graphemes); grapheme editor (`setGraphemeStatus` in `useProgress`, editable `ProgressScreen` — tap tiles to cycle unseen→introduced→practising→mastered); scarf cosmetic unlocked (flood-fill background removal, `overlayStyle` tuned); full folder restructure into `src/core/` / `src/subjects/phonics/` / `src/apps/`
 - **Session 10:** Notification hooks (Stop + Notification events → Windows balloon tips); fixed TrickyWordQuestion bug where presented word was absent from options (StrictMode double-effect-run: switched `useRef` to `useMemo([targetWord.word])`); `sounds.js` service with `playCorrectSound()` (C5→G5 Web Audio chime, called on every correct answer); tricky words added to ProgressScreen (Phase 2/3/4 grids, own summary counts, editable); `setTrickyWordStatus` added to `useProgress`; ParentAreaScreen "Edit Graphemes" → "Edit Progress"
 
-## Known loose ends
-- **Maths app Vercel deployment** — `src/apps/maths/` and `src/subjects/maths/` stubs exist but the maths app has not been wired up as a separate Vercel deployment (unlike phonics which has its own `dist-maths/` build output and Vercel project). Needs a dedicated Vercel project + build config.
-- **Profile subject field** — user profiles don't yet have a `subject` field to route each profile to phonics vs maths. Profiles currently always open the phonics app. Needs a subject selector on profile create/edit and routing logic in App.jsx.
+## Maths Vercel deployment
+The maths app builds with `npm run build:maths` → `dist-maths/index.html`. To deploy it, create a separate Vercel project pointing to the same repo with these settings:
+- **Framework preset:** Vite
+- **Build command:** `npm run build:maths`
+- **Output directory:** `dist-maths`
+- **Root directory:** (repo root)
 
-## Coming in session 11
-- Phase 3 audio recordings (currently falling back to TTS)
+The main phonics deployment uses the default `npm run build` → `dist/`.
+
+- **Session 11:** Flowers/rainbow/balloon habitat items (PNG background removal, `RainbowItem` at horizon, `BalloonItem` state-machine shuttle 90s cross + 45s wait, sky-before-ground render order); item placement collision avoidance (`pickX`); test-mode "Remove All Items" button in shop; profile subject routing — `src/App.jsx` shows all profiles and routes to phonics or maths screens based on `profile.subject`; `CreateProfileScreen` shows subject picker (📚/🔢) when no `defaultSubject` given; `useProfiles` supports null subject (returns all profiles); maths Vercel deployment documented
+
+## Coming in session 12
+- Phase 3 phonics audio recordings (currently falling back to TTS)
+- Maths subject content (curriculum, questions, progression)
 - Possible: animated reward sequences, streak tracking, difficulty calibration

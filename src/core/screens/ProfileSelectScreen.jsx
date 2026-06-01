@@ -37,7 +37,7 @@ function ProfileCard({ profile, onSelect, onDelete }) {
   )
 }
 
-export default function ProfileSelectScreen({ subject = 'phonics', onSelect }) {
+export default function ProfileSelectScreen({ subject = null, onSelect }) {
   const { profiles, createProfile, deleteProfile, setActiveProfile } = useProfiles(subject)
   const [creating, setCreating] = useState(false)
 
@@ -46,8 +46,8 @@ export default function ProfileSelectScreen({ subject = 'phonics', onSelect }) {
     onSelect(profile)
   }
 
-  function handleCreated({ name, colour }) {
-    const profile = createProfile({ name, colour })
+  function handleCreated({ name, colour, subject: chosenSubject }) {
+    const profile = createProfile({ name, colour, subject: chosenSubject })
     setCreating(false)
     handleSelect(profile)
   }
@@ -56,7 +56,7 @@ export default function ProfileSelectScreen({ subject = 'phonics', onSelect }) {
     deleteProfile(id)
   }
 
-  const appTitle = subject === 'maths' ? 'Jimmy Maths' : 'Jimmy Phonics'
+  const appTitle = subject === 'maths' ? 'Jimmy Maths' : subject === 'phonics' ? 'Jimmy Phonics' : 'Jimmy'
 
   return (
     <div className="min-h-screen bg-yellow-50 flex flex-col items-center justify-center p-6 gap-8">
@@ -76,6 +76,7 @@ export default function ProfileSelectScreen({ subject = 'phonics', onSelect }) {
 
       {creating ? (
         <CreateProfileScreen
+          defaultSubject={subject}
           onCreated={handleCreated}
           onCancel={() => setCreating(false)}
         />

@@ -28,11 +28,13 @@ export function useProfiles(subject) {
   })
 
   function getProfilesForSubject(subj) {
+    if (!subj) return profiles  // null/undefined = all subjects
     return profiles.filter(p => p.subject === subj)
   }
 
-  function createProfile({ name, colour }) {
-    const profile = { id: uid(), name, colour, subject, createdAt: new Date().toISOString() }
+  function createProfile({ name, colour, subject: subjectOverride }) {
+    const resolvedSubject = subjectOverride ?? subject ?? 'phonics'
+    const profile = { id: uid(), name, colour, subject: resolvedSubject, createdAt: new Date().toISOString() }
     const next = [...profiles, profile]
     saveProfiles(next)
     setProfiles(next)
