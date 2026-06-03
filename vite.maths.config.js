@@ -38,6 +38,10 @@ export default defineConfig({
     }),
     renameMathsHtml(),
   ],
+  appType: 'spa',
+  server: {
+    open: '/maths.html',
+  },
   build: {
     outDir: 'dist-maths',
     rollupOptions: {

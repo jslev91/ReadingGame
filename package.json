@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "dev:maths": "vite --config vite.maths.config.js --port 5174",
     "build": "vite build",
     "build:maths": "vite build --config vite.maths.config.js",
     "lint": "eslint .",
