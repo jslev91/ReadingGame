@@ -9,7 +9,6 @@ const STATUS_COLOUR = {
 }
 
 const PHASE_LABEL = { 1: 'Phase 1', 2: 'Phase 2', 3: 'Phase 3', 4: 'Phase 4' }
-
 const CYCLE = { unseen: 'introduced', introduced: 'practising', practising: 'mastered', mastered: 'unseen' }
 
 export default function ProgressScreen({ userId, onBack, editable }) {
@@ -37,7 +36,7 @@ export default function ProgressScreen({ userId, onBack, editable }) {
           ←
         </button>
         <h1 className="text-2xl font-bold text-blue-800">
-          {editable ? 'Edit Maths Progress' : 'Maths Progress 🔢'}
+          {editable ? 'Edit Maths Progress' : 'Times Tables 🔢'}
         </h1>
       </div>
 
@@ -48,7 +47,7 @@ export default function ProgressScreen({ userId, onBack, editable }) {
       </div>
 
       {editable && (
-        <p className="text-sm text-blue-600">Tap any topic to cycle its status.</p>
+        <p className="text-sm text-blue-600">Tap any table to cycle its status.</p>
       )}
 
       {phases.map(phase => {

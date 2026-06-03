@@ -4,15 +4,16 @@ import { playCorrectSound } from '../../../core/services/sounds'
 import { useMathsProgress } from '../hooks/useProgress'
 import { selectNextTopic, generateQuestion } from '../services/questionSelector'
 import Jimmy from '../../../core/components/Jimmy'
-import MathsQuestion from '../components/MathsQuestion'
+import TimesTableQuestion from '../components/TimesTableQuestion'
+import DivisionQuestion from '../components/DivisionQuestion'
 
 const SESSION_LENGTH = 10
 
 export default function GameScreen({ userId, onHome, onSessionComplete }) {
   const pet = usePet(userId)
   const progress = useMathsProgress(userId)
-  const [topic, setTopic] = useState(null)
   const [question, setQuestion] = useState(null)
+  const [currentTopic, setCurrentTopic] = useState(null)
   const [locked, setLocked] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
   const [poopToast, setPoopToast] = useState(null)
@@ -32,14 +33,21 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     setTimeout(() => setPoopToast(null), 1500)
   }
 
-  // questionIndex is the only dep — same reasoning as phonics GameScreen:
-  // progress.progressMap is current at render time; adding it would infinite-loop via recordPresented.
+  // questionIndex is the only dep — same reasoning as phonics GameScreen
   useEffect(() => {
-    const nextTopic = selectNextTopic(progress.progressMap)
-    const nextQuestion = generateQuestion(nextTopic)
-    progress.recordPresented(nextTopic.id)
-    setTopic(nextTopic)
-    setQuestion(nextQuestion)
+    const topic = selectNextTopic(progress.progressMap)
+    const status = progress.progressMap[topic.id]?.status ?? 'unseen'
+    progress.recordPresented(topic.id)
+
+    // Division eligible only once topic is practising or mastered (60% times table / 40% division)
+    const divEligible = status === 'practising' || status === 'mastered'
+    const kind = divEligible && Math.random() < 0.4 ? 'division' : 'times_table'
+    const format = kind === 'division'
+      ? (Math.random() < 0.5 ? 'division' : 'missing-factor')
+      : null
+
+    setCurrentTopic(topic)
+    setQuestion(generateQuestion(topic, status, kind, format))
     setLocked(false)
   }, [questionIndex])
 
@@ -68,7 +76,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     playCorrectSound()
     const coinReward = pet.jimmySleeping ? 0 : 1
     pet.onCorrect(coinReward)
-    progress.recordCorrect(topic.id)
+    progress.recordCorrect(currentTopic.id)
     jimmyRef.current?.react('happy')
     advance(true, coinReward)
   }
@@ -77,7 +85,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     if (locked) return
     setLocked(true)
     pet.onWrong()
-    progress.recordWrong(topic.id)
+    progress.recordWrong(currentTopic.id)
     jimmyRef.current?.react('sad')
     advance(false)
   }
@@ -115,15 +123,28 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
         )}
       </div>
 
-      {question && topic && (
+      {question && (
         <div className="bg-white rounded-3xl shadow-lg w-full max-w-sm">
-          <MathsQuestion
-            key={questionIndex}
-            question={question}
-            onCorrect={handleCorrect}
-            onWrong={handleWrong}
-            locked={locked}
-          />
+          {question.kind === 'division' ? (
+            <DivisionQuestion
+              key={questionIndex}
+              fact={question.fact}
+              format={question.format}
+              options={question.options}
+              onCorrect={handleCorrect}
+              onWrong={handleWrong}
+              locked={locked}
+            />
+          ) : (
+            <TimesTableQuestion
+              key={questionIndex}
+              fact={question.fact}
+              options={question.options}
+              onCorrect={handleCorrect}
+              onWrong={handleWrong}
+              locked={locked}
+            />
+          )}
         </div>
       )}
     </div>
