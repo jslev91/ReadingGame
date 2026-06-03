@@ -27,12 +27,13 @@ src/
   subjects/
     phonics/
       components/ ← PhonemeQuestion.jsx, InitialSoundQuestion.jsx, BlendingQuestion.jsx,
-                     SpellingQuestion.jsx, TrickyWordQuestion.jsx
+                     SpellingQuestion.jsx, TrickyWordQuestion.jsx, ReadingQuestion.jsx
       data/       ← phonics.js, words.js, trickyWords.js
       hooks/      ← useProgress.js
       screens/    ← GameScreen.jsx, ProgressScreen.jsx
       services/   ← questionSelector.js, cosmeticSprites.js
-    maths/        ← separate subject (curriculum.js, MathsQuestion, GameScreen, ProgressScreen)
+    maths/        ← separate subject (curriculum.js, TimesTableQuestion, DivisionQuestion,
+                     GameScreen, ProgressScreen, questionSelector.js, useProgress.js)
   apps/
     phonics/      ← App.jsx + main.jsx (standalone phonics PWA entry)
     maths/        ← App.jsx + main.jsx (standalone maths PWA entry)
@@ -331,20 +332,36 @@ Tap handling: anti-guessing rules — one attempt, wrong reveals correct (green)
 ### `src/core/screens/HomeScreen.jsx`
 Shows Jimmy habitat, "Play with Jimmy" button, 🛍️ shop button (top-right, 64px), ⭐ progress button (top-left, 64px), and reset button (bottom-right, small/hidden). Long-press ⚙️ bottom-left (800ms) opens `ParentAreaScreen`.
 
+### `src/subjects/phonics/components/ReadingQuestion.jsx`
+Props: `wordEntry`, `distractors` (2 word objects), `onCorrect`, `onWrong`, `locked`.
+
+Two-phase interaction. The only question type where the child **reads** rather than listens — tests decoding.
+
+**Phase 1 — auto-play sequence:** On mount, shuffles [target, distractor1, distractor2] into a random order. Plays all three via TTS (`speak('', word)`) in sequence with 1200ms between each. A numbered indicator (1/2/3) pulses on the currently-playing slot. Phase 2 begins after all three have played (~3600ms total).
+
+**Phase 2 — answer columns:** Shows the target word large (`text-5xl font-bold`) above three side-by-side columns. Each column has:
+1. **🔊 speaker button** (top) — replays that slot's word, no commitment, can tap freely
+2. **↑ select button** (bottom, min-h-16) — submits the answer; locks all buttons
+
+Wrong: correct column highlights green, tapped column red; `onWrong` fires 800ms later. Correct: `onCorrect` fires immediately. "Hear all again" button replays the full sequence from the top.
+
+No grapheme progress is recorded — like BlendingQuestion, this tests whole words.
+
 ### `src/subjects/phonics/screens/GameScreen.jsx`
-Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned })` after the 10th question.
+Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned, stats, mood })` after the 10th question.
 
 Question type selection per question (weighted random, evaluated each time, ineligible types get weight 0 and others rescale):
-- `PhonemeQuestion`: always eligible — 35%
+- `PhonemeQuestion`: always eligible — 30%
 - `InitialSoundQuestion`: eligible when 2+ graphemes introduced — 20%
 - `BlendingQuestion`: eligible when `selectBlendingWord` returns non-null — 15%
 - `SpellingQuestion`: eligible when `selectBlendingWord` returns non-null — 15%
-- `TrickyWordQuestion`: eligible when `selectNextTrickyWord` returns non-null — 15%
+- `TrickyWordQuestion`: eligible when `selectNextTrickyWord` returns non-null — 10%
+- `ReadingQuestion`: eligible when `selectBlendingWord` returns non-null — 10%
 
 `questionIndex` dep array pattern — see comment in code. `progressMap` intentionally absent; adding it would cause an infinite loop via `recordPresented`.
 
 Holds a `jimmyRef` and calls `jimmyRef.current.react('happy'/'sad')` on answer. Calls `playCorrectSound()` immediately on correct answer.
-Progress recorded only for phoneme/initial questions — blending and spelling don't map to a single grapheme.
+Progress recorded only for phoneme/initial questions — blending, spelling, and reading don't map to a single grapheme.
 Coin reward is 0 (not 1) when `pet.jimmySleeping`.
 
 ### `src/core/screens/SessionSummaryScreen.jsx`
@@ -367,6 +384,53 @@ In editable mode (`editable` prop): tapping any grapheme tile cycles `unseen→i
 
 ### `src/core/screens/ParentAreaScreen.jsx`
 Bottom-sheet modal. Opened from HomeScreen via long-press ⚙️ (800ms). Buttons: Switch Profile, Edit Progress (→ editable ProgressScreen), Reset Progress (confirm), Delete Profile (confirm). Profile colour dot + name shown at top.
+
+## Maths subject
+
+### `src/subjects/maths/data/curriculum.js`
+11 times table topics in UK National Curriculum teaching order. Each topic:
+```js
+{ id: 'times_3', label: '3 times table', phase: 2, order: 4, type: 'times_table', b: 3, minFactor: 1, maxFactor: 12 }
+```
+Phase ordering: Phase 1 (×2, ×5, ×10), Phase 2 (×3, ×4), Phase 3 (×6, ×7, ×8), Phase 4 (×9, ×11, ×12).
+
+### `src/subjects/maths/hooks/useProgress.js`
+Exports `useMathsProgress(userId)`. Storage key: `mathsProgress`. Same `unseen → introduced → practising → mastered` model as phonics (thresholds: 3 correct → practising, 7 → mastered). Exposes: `progressMap`, `recordPresented(topicId)`, `recordCorrect(topicId)`, `recordWrong(topicId)`, `setTopicStatus(topicId, status)`.
+
+### `src/subjects/maths/services/questionSelector.js`
+**`selectNextTopic(progressMap)`** — returns the next times table topic using the same introduced-first, no-new-while-introduced pacing as phonics. Mastered maintenance at 1 in 10.
+
+**`generateQuestion(topic, status, kind, format)`** — returns a question object.
+- `kind: 'times_table'` → options are **products** (correct: `fact.answer`; distractors: products from adjacent factors in the same table)
+- `kind: 'division'` → options are **factors** (correct: `fact.a`; distractors: adjacent factors clamped to `minFactor`–`maxFactor`)
+- `optionCount` = 3 when introduced, 4 when practising/mastered
+- `format` (division only): `'division'` | `'missing-factor'` — chosen randomly in GameScreen
+
+Fact shape: `{ a, b, answer }` where `a × b = answer`. `b` is always the table being practised (`topic.b`). `a` is the randomly chosen factor.
+
+### `src/subjects/maths/components/TimesTableQuestion.jsx`
+Props: `fact`, `options`, `onCorrect`, `onWrong`, `locked`.
+Displays `b × a = ?` or `a × b = ?` (randomly) in `text-5xl font-bold`. TTS on mount via `factToSpeech(fact)`: `"b times a, equals"`. Answer options are products; 4-option layout wraps 2+2. Exports `factToSpeech` for use in `DivisionQuestion`.
+
+### `src/subjects/maths/components/DivisionQuestion.jsx`
+Props: `fact`, `format`, `options`, `onCorrect`, `onWrong`, `locked`.
+- Format `'division'`: displays `answer ÷ b = ?`, TTS `"answer divided by b, equals"`
+- Format `'missing-factor'`: displays `b × ? = answer` (? in amber), TTS `"b times what, equals answer"`
+Both formats test the same value — `fact.a` (the factor). Options are factors, not products.
+
+### `src/subjects/maths/screens/GameScreen.jsx`
+Mirrors phonics GameScreen. `usePet` + `useMathsProgress`. Jimmy reactions. Poop handling. 10-question sessions. `onSessionComplete({ correct, total, coinsEarned, stats, mood })`.
+
+Question selection per question:
+- `selectNextTopic` chooses the topic
+- If topic status is `practising` or `mastered`: 60% `TimesTableQuestion`, 40% `DivisionQuestion`
+- If topic status is `introduced`: 100% `TimesTableQuestion` (division not eligible yet)
+- Division format chosen randomly 50/50 each time
+
+Progress recorded via `recordCorrect(topicId)` / `recordWrong(topicId)` regardless of question kind — multiplication and division practice both count towards the same topic.
+
+### `src/subjects/maths/screens/ProgressScreen.jsx`
+Times table list grouped by phase. Each topic shown as a full-width button colour-coded by status (grey/yellow/orange/green). Summary chip row (Learning / Practising / Mastered). Editable mode (parent area) taps cycle the status. Correct count shown alongside each practising/mastered topic.
 
 ## Navigation
 React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"` | `"progress"` | `"editProgress"` | `"profiles"` | `"createProfile"`). No router library.
@@ -422,8 +486,8 @@ The maths app builds with `npm run build:maths` → `dist-maths/index.html`. To 
 The main phonics deployment uses the default `npm run build` → `dist/`.
 
 - **Session 11:** Flowers/rainbow/balloon habitat items (PNG background removal, `RainbowItem` at horizon, `BalloonItem` state-machine shuttle 90s cross + 45s wait, sky-before-ground render order); item placement collision avoidance (`pickX`); test-mode "Remove All Items" button in shop; profile subject routing — `src/App.jsx` shows all profiles and routes to phonics or maths screens based on `profile.subject`; `CreateProfileScreen` shows subject picker (📚/🔢) when no `defaultSubject` given; `useProfiles` supports null subject (returns all profiles); maths Vercel deployment documented
+- **Session 12:** Maths subject fully implemented — 11 times table topics (×2–×12, UK curriculum order), `TimesTableQuestion` (products as options, TTS, 3/4 options by mastery), `DivisionQuestion` (two formats: `answer ÷ b = ?` and `b × ? = answer`, factor-based options, 60/40 weighting with TimesTable once practising/mastered), `useMathsProgress` + `questionSelector` mirroring phonics pacing; phonics `ReadingQuestion` added (auto-play sequence then 🔊/↑ column layout, no grapheme progress recorded); phonics question weights updated to 30/20/15/15/10/10; `SessionSummaryScreen` made safe when `stats` absent (maths summary shows score without Jimmy habitat)
 
-## Coming in session 12
-- Phase 3 phonics audio recordings (currently falling back to TTS)
-- Maths subject content (curriculum, questions, progression)
-- Possible: animated reward sequences, streak tracking, difficulty calibration
+## Notes for session 13
+- **Addition and subtraction** — next maths question type. Track progress by difficulty band (Band 1: sums to 10, Band 2: sums to 20, Band 3: two-digit without carrying, Band 4: two-digit with carrying). Generate facts programmatically; same mastery model per band.
+- **Difficulty calibration** — rolling 20-question window per subject per profile. If correct rate > 85%, accelerate new topic introduction. If < 55%, pause and consolidate. Show rolling rate in parent area.
