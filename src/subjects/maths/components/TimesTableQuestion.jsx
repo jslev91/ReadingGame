@@ -1,19 +1,9 @@
-import { useState, useEffect } from 'react'
-import { speak } from '../../../core/services/tts'
-
-export function factToSpeech(fact) {
-  return `${fact.b} times ${fact.a}, equals`
-}
+import { useState } from 'react'
 
 export default function TimesTableQuestion({ fact, options, onCorrect, onWrong, locked }) {
   const [chosen, setChosen] = useState(null)
   // Randomly show b × a or a × b to reinforce commutativity
   const [flip] = useState(() => Math.random() < 0.5)
-
-  useEffect(() => {
-    const cancel = speak('maths_tts', factToSpeech(fact))
-    return cancel
-  }, [])
 
   function handleTap(option) {
     if (locked || chosen !== null) return

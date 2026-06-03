@@ -1,19 +1,7 @@
-import { useState, useEffect } from 'react'
-import { speak } from '../../../core/services/tts'
-import { factToSpeech } from './TimesTableQuestion'
-
-function divisionToSpeech(fact, format) {
-  if (format === 'division') return `${fact.answer} divided by ${fact.b}, equals`
-  return `${fact.b} times what, equals ${fact.answer}`
-}
+import { useState } from 'react'
 
 export default function DivisionQuestion({ fact, format, options, onCorrect, onWrong, locked }) {
   const [chosen, setChosen] = useState(null)
-
-  useEffect(() => {
-    const cancel = speak('maths_tts', divisionToSpeech(fact, format))
-    return cancel
-  }, [])
 
   function handleTap(option) {
     if (locked || chosen !== null) return
