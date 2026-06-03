@@ -23,4 +23,13 @@ export default defineConfig({
       },
     }),
   ],
+  appType: 'spa',
+  server: {
+    open: '/phonics.html',
+  },
+  build: {
+    rollupOptions: {
+      input: { app: 'phonics.html' },
+    },
+  },
 })
