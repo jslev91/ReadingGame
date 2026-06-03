@@ -10,6 +10,7 @@ import InitialSoundQuestion from '../components/InitialSoundQuestion'
 import BlendingQuestion from '../components/BlendingQuestion'
 import SpellingQuestion from '../components/SpellingQuestion'
 import TrickyWordQuestion from '../components/TrickyWordQuestion'
+import ReadingQuestion from '../components/ReadingQuestion'
 
 const SESSION_LENGTH = 10
 
@@ -48,18 +49,19 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     const blending = selectBlendingWord(progress.progressMap)
     const introCount = Object.keys(progress.progressMap).length
 
-    // Weighted question type selection: 35% phoneme, 20% initial, 15% blending, 15% spelling, 15% tricky
+    // Weighted question type selection: 30% phoneme, 20% initial, 15% blending, 15% spelling, 10% tricky, 10% reading
     // Types not yet eligible have weight 0; remaining weights are rescaled proportionally.
     const blendingEligible = blending !== null
     const initialEligible = introCount >= 2
     const tricky = selectNextTrickyWord(progress.trickyWordProgressMap)
     trickyQuestion.current = tricky
     const typeWeights = {
-      phoneme:  0.35,
+      phoneme:  0.30,
       initial:  initialEligible  ? 0.20 : 0,
       blending: blendingEligible ? 0.15 : 0,
       spelling: blendingEligible ? 0.15 : 0,
-      tricky:   tricky           ? 0.15 : 0,
+      tricky:   tricky           ? 0.10 : 0,
+      reading:  blendingEligible ? 0.10 : 0,
     }
     const totalWeight = Object.values(typeWeights).reduce((a, b) => a + b, 0)
     let r = Math.random() * totalWeight
@@ -69,7 +71,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
       if (r <= 0) { type = t; break }
     }
 
-    if (type === 'blending' || type === 'spelling') {
+    if (type === 'blending' || type === 'spelling' || type === 'reading') {
       setQuestion({ type, ...blending })
     } else if (type === 'tricky') {
       progress.recordTrickyPresented(trickyQuestion.current.targetWord.word)
@@ -109,7 +111,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     pet.onCorrect(coinReward)
     if (question.type === 'tricky') {
       progress.recordTrickyCorrect(question.targetWord.word)
-    } else if (question.type !== 'blending' && question.type !== 'spelling') {
+    } else if (question.type !== 'blending' && question.type !== 'spelling' && question.type !== 'reading') {
       progress.recordCorrect(question.entry.grapheme)
     }
     jimmyRef.current?.react('happy')
@@ -122,7 +124,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     pet.onWrong()
     if (question.type === 'tricky') {
       progress.recordTrickyWrong(question.targetWord.word)
-    } else if (question.type !== 'blending' && question.type !== 'spelling') {
+    } else if (question.type !== 'blending' && question.type !== 'spelling' && question.type !== 'reading') {
       progress.recordWrong(question.entry.grapheme)
     }
     jimmyRef.current?.react('sad')
@@ -148,6 +150,18 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
       return (
         <BlendingQuestion
           key={'blending-' + questionIndex}
+          wordEntry={question.wordEntry}
+          distractors={question.distractors}
+          onCorrect={handleCorrect}
+          onWrong={handleWrong}
+          locked={locked}
+        />
+      )
+    }
+    if (question.type === 'reading') {
+      return (
+        <ReadingQuestion
+          key={'reading-' + questionIndex}
           wordEntry={question.wordEntry}
           distractors={question.distractors}
           onCorrect={handleCorrect}
