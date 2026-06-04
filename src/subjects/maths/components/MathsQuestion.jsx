@@ -1,5 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
-import { speak } from '../../../core/services/tts'
+import { useState } from 'react'
 
 // Dots arranged in rows of 5 (subitising-friendly)
 function DotGrid({ count, colour = 'bg-blue-400' }) {
@@ -124,33 +123,9 @@ function getEquation(question) {
   }
 }
 
-function getPrompt(question) {
-  switch (question.type) {
-    case 'counting':
-      return question.minN >= 11 ? 'What number is this?' : 'How many dots?'
-    case 'addition':
-      return `${question.a} plus ${question.b}. How many altogether?`
-    case 'subtraction':
-      return `${question.a} take away ${question.b}. How many are left?`
-    case 'bond':
-      return question.unknownFirst
-        ? `What goes with ${question.known} to make ${question.total}?`
-        : `${question.known} plus what number makes ${question.total}?`
-    default:
-      return ''
-  }
-}
 
 export default function MathsQuestion({ question, onCorrect, onWrong, locked }) {
   const [chosen, setChosen] = useState(null)
-  const prompt = getPrompt(question)
-
-  useEffect(() => {
-    const cancel = speak('maths_tts', prompt)
-    return cancel
-  }, [])
-
-  const replay = useCallback(() => speak('maths_tts', prompt), [prompt])
 
   function handleTap(option) {
     if (locked || chosen !== null) return
@@ -178,7 +153,6 @@ export default function MathsQuestion({ question, onCorrect, onWrong, locked }) 
 
       <div className="flex items-center gap-2">
         <p className="text-xl font-bold text-center text-gray-700">{getEquation(question)}</p>
-        <button onClick={replay} aria-label="Replay" className="text-xl ml-1">🔊</button>
       </div>
 
       <div className="flex gap-3 w-full">
