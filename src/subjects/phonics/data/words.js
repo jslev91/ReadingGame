@@ -114,28 +114,132 @@ export const words = [
   { word: 'fist', graphemes: ['f', 'i', 's', 't'], phase: 4, minIntroduced: 19 },
   { word: 'sink', graphemes: ['s', 'i', 'n', 'k'], phase: 4, minIntroduced: 12 },
   { word: 'tank', graphemes: ['t', 'a', 'n', 'k'], phase: 4, minIntroduced: 12 },
+
+  // ─── Phase 5 — split digraphs and alternative spellings ───────────────────
+  // minIntroduced refers to Phase 2 count (always ≥ 1 by Phase 5); real gate is
+  // the grapheme check in selectBlendingWord (all component graphemes introduced).
+  // a-e words
+  { word: 'cake',  graphemes: ['c', 'a-e', 'k'],       phase: 5, minIntroduced: 1 },
+  { word: 'name',  graphemes: ['n', 'a-e', 'm'],       phase: 5, minIntroduced: 1 },
+  { word: 'face',  graphemes: ['f', 'a-e', 'c'],       phase: 5, minIntroduced: 1 },
+  { word: 'gate',  graphemes: ['g', 'a-e', 't'],       phase: 5, minIntroduced: 1 },
+  { word: 'lake',  graphemes: ['l', 'a-e', 'k'],       phase: 5, minIntroduced: 1 },
+  { word: 'same',  graphemes: ['s', 'a-e', 'm'],       phase: 5, minIntroduced: 1 },
+  { word: 'late',  graphemes: ['l', 'a-e', 't'],       phase: 5, minIntroduced: 1 },
+  { word: 'wave',  graphemes: ['w', 'a-e', 'v'],       phase: 5, minIntroduced: 1 },
+  // i-e words
+  { word: 'time',  graphemes: ['t', 'i-e', 'm'],       phase: 5, minIntroduced: 1 },
+  { word: 'like',  graphemes: ['l', 'i-e', 'k'],       phase: 5, minIntroduced: 1 },
+  { word: 'bike',  graphemes: ['b', 'i-e', 'k'],       phase: 5, minIntroduced: 1 },
+  { word: 'kite',  graphemes: ['k', 'i-e', 't'],       phase: 5, minIntroduced: 1 },
+  { word: 'five',  graphemes: ['f', 'i-e', 'v'],       phase: 5, minIntroduced: 1 },
+  { word: 'hive',  graphemes: ['h', 'i-e', 'v'],       phase: 5, minIntroduced: 1 },
+  { word: 'mine',  graphemes: ['m', 'i-e', 'n'],       phase: 5, minIntroduced: 1 },
+  { word: 'fine',  graphemes: ['f', 'i-e', 'n'],       phase: 5, minIntroduced: 1 },
+  { word: 'mile',  graphemes: ['m', 'i-e', 'l'],       phase: 5, minIntroduced: 1 },
+  // o-e words
+  { word: 'bone',  graphemes: ['b', 'o-e', 'n'],       phase: 5, minIntroduced: 1 },
+  { word: 'home',  graphemes: ['h', 'o-e', 'm'],       phase: 5, minIntroduced: 1 },
+  { word: 'note',  graphemes: ['n', 'o-e', 't'],       phase: 5, minIntroduced: 1 },
+  { word: 'rose',  graphemes: ['r', 'o-e', 'z'],       phase: 5, minIntroduced: 1 },
+  { word: 'nose',  graphemes: ['n', 'o-e', 'z'],       phase: 5, minIntroduced: 1 },
+  { word: 'hope',  graphemes: ['h', 'o-e', 'p'],       phase: 5, minIntroduced: 1 },
+  { word: 'mole',  graphemes: ['m', 'o-e', 'l'],       phase: 5, minIntroduced: 1 },
+  { word: 'stone', graphemes: ['s', 't', 'o-e', 'n'],  phase: 5, minIntroduced: 1 },
+  { word: 'those', graphemes: ['th', 'o-e', 'z'],      phase: 5, minIntroduced: 1 },
+  // u-e words
+  { word: 'tune',  graphemes: ['t', 'u-e', 'n'],       phase: 5, minIntroduced: 1 },
+  { word: 'cube',  graphemes: ['c', 'u-e', 'b'],       phase: 5, minIntroduced: 1 },
+  { word: 'cute',  graphemes: ['c', 'u-e', 't'],       phase: 5, minIntroduced: 1 },
+  { word: 'mule',  graphemes: ['m', 'u-e', 'l'],       phase: 5, minIntroduced: 1 },
+  { word: 'rule',  graphemes: ['r', 'u-e', 'l'],       phase: 5, minIntroduced: 1 },
+  // e-e words
+  { word: 'these', graphemes: ['th', 'e-e', 's'],      phase: 5, minIntroduced: 1 },
+  { word: 'theme', graphemes: ['th', 'e-e', 'm'],      phase: 5, minIntroduced: 1 },
+  // ay words
+  { word: 'day',   graphemes: ['d', 'ay'],              phase: 5, minIntroduced: 1 },
+  { word: 'play',  graphemes: ['p', 'l', 'ay'],         phase: 5, minIntroduced: 1 },
+  { word: 'say',   graphemes: ['s', 'ay'],              phase: 5, minIntroduced: 1 },
+  { word: 'stay',  graphemes: ['s', 't', 'ay'],         phase: 5, minIntroduced: 1 },
+  { word: 'tray',  graphemes: ['t', 'r', 'ay'],         phase: 5, minIntroduced: 1 },
+  { word: 'clay',  graphemes: ['c', 'l', 'ay'],         phase: 5, minIntroduced: 1 },
+  // ea words
+  { word: 'eat',   graphemes: ['ea', 't'],              phase: 5, minIntroduced: 1 },
+  { word: 'sea',   graphemes: ['s', 'ea'],              phase: 5, minIntroduced: 1 },
+  { word: 'meat',  graphemes: ['m', 'ea', 't'],         phase: 5, minIntroduced: 1 },
+  { word: 'heat',  graphemes: ['h', 'ea', 't'],         phase: 5, minIntroduced: 1 },
+  { word: 'team',  graphemes: ['t', 'ea', 'm'],         phase: 5, minIntroduced: 1 },
+  { word: 'bean',  graphemes: ['b', 'ea', 'n'],         phase: 5, minIntroduced: 1 },
+  { word: 'read',  graphemes: ['r', 'ea', 'd'],         phase: 5, minIntroduced: 1 },
+  { word: 'clean', graphemes: ['c', 'l', 'ea', 'n'],   phase: 5, minIntroduced: 1 },
+  // ou words
+  { word: 'out',   graphemes: ['ou', 't'],              phase: 5, minIntroduced: 1 },
+  { word: 'shout', graphemes: ['sh', 'ou', 't'],        phase: 5, minIntroduced: 1 },
+  { word: 'cloud', graphemes: ['c', 'l', 'ou', 'd'],   phase: 5, minIntroduced: 1 },
+  { word: 'found', graphemes: ['f', 'ou', 'n', 'd'],   phase: 5, minIntroduced: 1 },
+  { word: 'round', graphemes: ['r', 'ou', 'n', 'd'],   phase: 5, minIntroduced: 1 },
+  { word: 'loud',  graphemes: ['l', 'ou', 'd'],         phase: 5, minIntroduced: 1 },
+  // oy / ie / ir / ue / aw / ew / oe words
+  { word: 'boy',   graphemes: ['b', 'oy'],              phase: 5, minIntroduced: 1 },
+  { word: 'toy',   graphemes: ['t', 'oy'],              phase: 5, minIntroduced: 1 },
+  { word: 'joy',   graphemes: ['j', 'oy'],              phase: 5, minIntroduced: 1 },
+  { word: 'tie',   graphemes: ['t', 'ie'],              phase: 5, minIntroduced: 1 },
+  { word: 'pie',   graphemes: ['p', 'ie'],              phase: 5, minIntroduced: 1 },
+  { word: 'lie',   graphemes: ['l', 'ie'],              phase: 5, minIntroduced: 1 },
+  { word: 'bird',  graphemes: ['b', 'ir', 'd'],         phase: 5, minIntroduced: 1 },
+  { word: 'girl',  graphemes: ['g', 'ir', 'l'],         phase: 5, minIntroduced: 1 },
+  { word: 'shirt', graphemes: ['sh', 'ir', 't'],        phase: 5, minIntroduced: 1 },
+  { word: 'stir',  graphemes: ['s', 't', 'ir'],         phase: 5, minIntroduced: 1 },
+  { word: 'blue',  graphemes: ['b', 'l', 'ue'],         phase: 5, minIntroduced: 1 },
+  { word: 'clue',  graphemes: ['c', 'l', 'ue'],         phase: 5, minIntroduced: 1 },
+  { word: 'glue',  graphemes: ['g', 'l', 'ue'],         phase: 5, minIntroduced: 1 },
+  { word: 'true',  graphemes: ['t', 'r', 'ue'],         phase: 5, minIntroduced: 1 },
+  { word: 'saw',   graphemes: ['s', 'aw'],              phase: 5, minIntroduced: 1 },
+  { word: 'claw',  graphemes: ['c', 'l', 'aw'],         phase: 5, minIntroduced: 1 },
+  { word: 'draw',  graphemes: ['d', 'r', 'aw'],         phase: 5, minIntroduced: 1 },
+  { word: 'jaw',   graphemes: ['j', 'aw'],              phase: 5, minIntroduced: 1 },
+  { word: 'paw',   graphemes: ['p', 'aw'],              phase: 5, minIntroduced: 1 },
+  { word: 'when',  graphemes: ['wh', 'e', 'n'],         phase: 5, minIntroduced: 1 },
+  { word: 'whip',  graphemes: ['wh', 'i', 'p'],         phase: 5, minIntroduced: 1 },
+  { word: 'new',   graphemes: ['n', 'ew'],              phase: 5, minIntroduced: 1 },
+  { word: 'flew',  graphemes: ['f', 'l', 'ew'],         phase: 5, minIntroduced: 1 },
+  { word: 'grew',  graphemes: ['g', 'r', 'ew'],         phase: 5, minIntroduced: 1 },
+  { word: 'chew',  graphemes: ['ch', 'ew'],             phase: 5, minIntroduced: 1 },
+  { word: 'few',   graphemes: ['f', 'ew'],              phase: 5, minIntroduced: 1 },
+  { word: 'toe',   graphemes: ['t', 'oe'],              phase: 5, minIntroduced: 1 },
+  { word: 'foe',   graphemes: ['f', 'oe'],              phase: 5, minIntroduced: 1 },
+  { word: 'phone', graphemes: ['ph', 'o-e', 'n'],       phase: 5, minIntroduced: 1 },
 ]
 
 // Returns a word where all graphemes have been introduced, plus 2 distractors
 // that share at least one grapheme with the target. Returns null if no eligible
 // words or fewer than 3 eligible words exist (BlendingQuestion won't be shown).
 export function selectBlendingWord(progressMap) {
-  const introducedGraphemes = new Set(
+  // Phase 2 tracking (for Phase 2/4 word gating)
+  const phase2Introduced = new Set(
     phase2
       .filter(p => ['introduced', 'practising', 'mastered'].includes(progressMap[p.grapheme]?.status))
       .map(p => p.grapheme)
   )
-  const introCount = introducedGraphemes.size
+  const introCount = phase2Introduced.size
   const practisingOrMasteredCount = phase2.filter(
     p => ['practising', 'mastered'].includes(progressMap[p.grapheme]?.status)
   ).length
   const phase4Unlocked = practisingOrMasteredCount >= 10
 
-  const eligible = words.filter(w =>
-    w.minIntroduced <= introCount &&
-    w.graphemes.every(g => introducedGraphemes.has(g)) &&
-    (w.phase !== 4 || phase4Unlocked)
-  )
+  // All-phase tracking (for Phase 5 word gating)
+  const allIntroduced = new Set()
+  phonics.forEach(p => {
+    if (['introduced', 'practising', 'mastered'].includes(progressMap[p.grapheme]?.status)) {
+      allIntroduced.add(p.grapheme)
+    }
+  })
+
+  const eligible = words.filter(w => {
+    if (w.phase === 4 && !phase4Unlocked) return false
+    if (w.phase === 5) return w.graphemes.every(g => allIntroduced.has(g))
+    return w.minIntroduced <= introCount && w.graphemes.every(g => phase2Introduced.has(g))
+  })
 
   if (eligible.length < 3) return null
 
