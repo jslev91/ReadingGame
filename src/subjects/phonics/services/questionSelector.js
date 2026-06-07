@@ -2,6 +2,7 @@ import phonics from '../data/phonics'
 
 const phase2 = phonics.filter(p => p.phase === 2).sort((a, b) => a.order - b.order)
 const phase3 = phonics.filter(p => p.phase === 3).sort((a, b) => a.order - b.order)
+const phase5 = phonics.filter(p => p.phase === 5).sort((a, b) => a.order - b.order)
 
 function getStatus(progressMap, grapheme) {
   return progressMap[grapheme]?.status ?? 'unseen'
@@ -40,19 +41,38 @@ const CONFUSABLE_PAIRS = {
   'ch':       ['sh', 'j'],
   'th':       ['f', 'v', 's'],
   'j':        ['ch', 'g'],
-  'ai':       ['ee', 'oa'],
-  'ee':       ['ai', 'ea'],
-  'igh':      ['i', 'ie'],
-  'oa':       ['ow', 'o'],
-  'oo_long':  ['oa'],
+  'ai':       ['ee', 'oa', 'ay', 'a-e'],
+  'ee':       ['ai', 'ea', 'e-e'],
+  'igh':      ['i', 'ie', 'i-e'],
+  'oa':       ['ow', 'o', 'oe', 'o-e'],
+  'oo_long':  ['oa', 'ue', 'ew', 'u-e'],
   'oo_short': ['u'],
+  // Phase 5 — same-sound alternative spellings are the most important confusables
+  'ay':  ['ai', 'a-e'],
+  'ie':  ['igh', 'i-e'],
+  'ea':  ['ee', 'e-e'],
+  'oy':  ['oi'],
+  'ir':  ['ur', 'er'],
+  'ue':  ['oo_long', 'ew', 'u-e'],
+  'aw':  ['or', 'au'],
+  'oe':  ['oa', 'o-e', 'ow'],
+  'ou':  ['ow'],
+  'ew':  ['oo_long', 'ue', 'u-e'],
+  'au':  ['or', 'aw'],
+  'a-e': ['ai', 'ay'],
+  'e-e': ['ee', 'ea'],
+  'i-e': ['igh', 'ie'],
+  'o-e': ['oa', 'oe'],
+  'u-e': ['oo_long', 'ue', 'ew'],
   'ar':       ['or', 'er'],
   'or':       ['ar', 'aw'],
   'er':       ['ar', 'ir'],
-  'ow':       ['oa', 'ou'],
-  'oi':       ['oy', 'ow'],
+  'ow':       ['oa', 'ou', 'oe', 'o-e'],
+  'oi':       ['oy'],
   'ear':      ['air', 'er'],
   'air':      ['ear', 'ar'],
+  'ur':       ['ar', 'ir', 'er'],
+  'er':       ['ar', 'ir', 'ur'],
 }
 
 // Use audioKey as the lookup key for 'oo' since both entries share grapheme 'oo'
@@ -98,8 +118,12 @@ function pickDistractors(correct, progressMap, count = 2) {
   return selected
 }
 
-function getNextUnseen(progressMap, allowPhase3) {
-  const sequence = allowPhase3 ? [...phase2, ...phase3] : phase2
+function getNextUnseen(progressMap, allowPhase3, allowPhase5) {
+  const sequence = [
+    ...phase2,
+    ...(allowPhase3 ? phase3 : []),
+    ...(allowPhase5 ? phase5 : []),
+  ]
   return sequence.find(p => getStatus(progressMap, p.grapheme) === 'unseen') ?? null
 }
 
@@ -142,11 +166,14 @@ function getOptionCount(progressMap, entry) {
 
 export function selectNextQuestion(progressMap, pace = 'normal') {
   const phase2PractisingOrMastered = countByStatus(progressMap, ['practising', 'mastered'], 2)
+  const phase3PractisingOrMastered = countByStatus(progressMap, ['practising', 'mastered'], 3)
   const allowPhase3 = phase2PractisingOrMastered >= 6
+  const allowPhase5 = phase3PractisingOrMastered >= 15
 
-  const reviewCandidates = phonics.filter(p =>
-    ['introduced', 'practising'].includes(getStatus(progressMap, p.grapheme))
-  )
+  const reviewCandidates = phonics.filter(p => {
+    if (p.phase === 5 && !allowPhase5) return false
+    return ['introduced', 'practising'].includes(getStatus(progressMap, p.grapheme))
+  })
 
   // Maintenance: mastered graphemes appear ~1 in 10 questions
   const masteredCandidates = phonics.filter(p => getStatus(progressMap, p.grapheme) === 'mastered')
@@ -174,7 +201,7 @@ export function selectNextQuestion(progressMap, pace = 'normal') {
   }
 
   // Introduce next unseen grapheme
-  const nextUnseen = getNextUnseen(progressMap, allowPhase3)
+  const nextUnseen = getNextUnseen(progressMap, allowPhase3, allowPhase5)
   if (nextUnseen) {
     const optionCount = getOptionCount(progressMap, nextUnseen)
     return { entry: nextUnseen, distractors: pickDistractors(nextUnseen, progressMap, optionCount - 1), isNew: true, optionCount }
