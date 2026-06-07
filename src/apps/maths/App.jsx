@@ -68,6 +68,7 @@ export default function App() {
     <HomeScreen
       userId={profile.id}
       profile={profile}
+      subject="maths"
       onPlay={() => setScreen('game')}
       onShop={() => setScreen('shop')}
       onProgress={() => setScreen('progress')}

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePet } from '../../../core/hooks/usePet'
 import { playCorrectSound } from '../../../core/services/sounds'
+import { usePerformance } from '../../../core/hooks/usePerformance'
 import { useMathsProgress, selectNextBand } from '../hooks/useProgress'
 import { selectNextTopic, generateQuestion } from '../services/questionSelector'
 import { generateArithmeticFact } from '../data/curriculum'
@@ -11,9 +12,11 @@ import ArithmeticQuestion, { generateArithmeticOptions } from '../components/Ari
 
 const SESSION_LENGTH = 10
 
-export default function GameScreen({ userId, onHome, onSessionComplete, introductionPace = 'normal', onAnswer }) {
+export default function GameScreen({ userId, onHome, onSessionComplete }) {
   const pet = usePet(userId)
   const progress = useMathsProgress(userId)
+  const perf = usePerformance(userId, 'maths')
+  const introductionPace = perf.introductionPace
   const [question, setQuestion] = useState(null)
   const [currentTopic, setCurrentTopic] = useState(null)
   const [currentBand, setCurrentBand] = useState(null)
@@ -72,7 +75,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete, introduc
   }, [questionIndex])
 
   function advance(correct, coinsEarned = 1) {
-    onAnswer?.(correct)
+    perf.recordAnswer(correct)
     const nextIndex = questionIndex + 1
     if (correct) {
       sessionCorrect.current += 1

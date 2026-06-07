@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export default function ParentAreaScreen({ profile, onClose, onSwitchProfile, onDeleteProfile, onResetProgress, onEditGraphemes }) {
+export default function ParentAreaScreen({ profile, recentRate, onClose, onSwitchProfile, onDeleteProfile, onResetProgress, onEditGraphemes }) {
   const [confirm, setConfirm] = useState(null) // 'reset' | 'delete'
 
   return (
@@ -13,7 +13,16 @@ export default function ParentAreaScreen({ profile, onClose, onSwitchProfile, on
 
         <div className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
           <div className="w-8 h-8 rounded-full flex-shrink-0" style={{ backgroundColor: profile.colour }} />
-          <span className="font-bold text-gray-700">{profile.name}</span>
+          <div className="flex flex-col">
+            <span className="font-bold text-gray-700">{profile.name}</span>
+            {recentRate === null || recentRate === undefined ? (
+              <span className="text-xs text-gray-400">Recent accuracy: not enough data yet</span>
+            ) : (
+              <span className={`text-xs font-bold ${recentRate >= 0.75 ? 'text-green-600' : recentRate >= 0.55 ? 'text-amber-500' : 'text-red-500'}`}>
+                Recent accuracy: {Math.round(recentRate * 100)}%
+              </span>
+            )}
+          </div>
         </div>
 
         <button

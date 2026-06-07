@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePet } from '../../../core/hooks/usePet'
 import { playCorrectSound } from '../../../core/services/sounds'
+import { usePerformance } from '../../../core/hooks/usePerformance'
 import { useProgress, selectNextTrickyWord } from '../hooks/useProgress'
 import { selectNextQuestion } from '../services/questionSelector'
 import { selectBlendingWord } from '../data/words'
@@ -17,6 +18,7 @@ const SESSION_LENGTH = 10
 export default function GameScreen({ userId, onHome, onSessionComplete }) {
   const pet = usePet(userId)
   const progress = useProgress(userId)
+  const perf = usePerformance(userId, 'phonics')
   const trickyQuestion = useRef(null)
   const [question, setQuestion] = useState(null)
   const [locked, setLocked] = useState(false)
@@ -77,7 +79,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
       progress.recordTrickyPresented(trickyQuestion.current.targetWord.word)
       setQuestion({ type, ...trickyQuestion.current })
     } else {
-      const next = selectNextQuestion(progress.progressMap)
+      const next = selectNextQuestion(progress.progressMap, perf.introductionPace)
       progress.recordPresented(next.entry.grapheme)
       setQuestion({ type, ...next })
     }
@@ -114,6 +116,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     } else if (question.type !== 'blending' && question.type !== 'spelling' && question.type !== 'reading') {
       progress.recordCorrect(question.entry.grapheme)
     }
+    perf.recordAnswer(true)
     jimmyRef.current?.react('happy')
     advance(true, coinReward)
   }
@@ -122,6 +125,7 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     if (locked) return
     setLocked(true)
     pet.onWrong()
+    perf.recordAnswer(false)
     if (question.type === 'tricky') {
       progress.recordTrickyWrong(question.targetWord.word)
     } else if (question.type !== 'blending' && question.type !== 'spelling' && question.type !== 'reading') {

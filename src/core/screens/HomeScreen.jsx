@@ -1,11 +1,13 @@
 import { useState, useRef } from 'react'
 import { usePet } from '../hooks/usePet'
+import { usePerformance } from '../hooks/usePerformance'
 import { removeItem, getGlobal, setGlobal } from '../services/storage'
 import Jimmy from '../components/Jimmy'
 import ParentAreaScreen from './ParentAreaScreen'
 
-export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress, onSwitchProfile, onDeleteProfile, onEditGraphemes }) {
+export default function HomeScreen({ userId, profile, subject = 'phonics', onPlay, onShop, onProgress, onSwitchProfile, onDeleteProfile, onEditGraphemes }) {
   const pet = usePet(userId)
+  const { recentRate } = usePerformance(userId, subject)
   const [toast, setToast] = useState(null)
   const [parentOpen, setParentOpen] = useState(false)
   const longPressTimer = useRef(null)
@@ -54,6 +56,7 @@ export default function HomeScreen({ userId, profile, onPlay, onShop, onProgress
       {parentOpen && (
         <ParentAreaScreen
           profile={profile}
+          recentRate={recentRate}
           onClose={() => setParentOpen(false)}
           onSwitchProfile={() => { setParentOpen(false); onSwitchProfile() }}
           onResetProgress={handleResetProgress}
