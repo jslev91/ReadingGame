@@ -1,4 +1,4 @@
-import { MATHS_TOPICS } from '../data/curriculum'
+import { MATHS_TOPICS, BANDS } from '../data/curriculum'
 import { useMathsProgress } from '../hooks/useProgress'
 
 const STATUS_COLOUR = {
@@ -10,6 +10,7 @@ const STATUS_COLOUR = {
 
 const PHASE_LABEL = { 1: 'Phase 1', 2: 'Phase 2', 3: 'Phase 3', 4: 'Phase 4' }
 const CYCLE = { unseen: 'introduced', introduced: 'practising', practising: 'mastered', mastered: 'unseen' }
+const BAND_CYCLE = { unseen: 'introduced', introduced: 'practising', practising: 'mastered', mastered: 'unseen' }
 
 export default function ProgressScreen({ userId, onBack, editable }) {
   const progress = useMathsProgress(userId)
@@ -25,6 +26,15 @@ export default function ProgressScreen({ userId, onBack, editable }) {
     progress.setTopicStatus(topicId, CYCLE[current])
   }
 
+  function cycleBandStatus(bandId) {
+    if (!editable) return
+    const current = progress.bandProgressMap[bandId]?.status ?? 'unseen'
+    progress.setBandStatus(bandId, BAND_CYCLE[current])
+  }
+
+  const addBands = BANDS.filter(b => b.operation === 'add')
+  const subBands = BANDS.filter(b => b.operation === 'subtract')
+
   return (
     <div className="min-h-screen bg-blue-50 flex flex-col gap-6 p-4">
       <div className="flex items-center gap-3">
@@ -36,7 +46,7 @@ export default function ProgressScreen({ userId, onBack, editable }) {
           ←
         </button>
         <h1 className="text-2xl font-bold text-blue-800">
-          {editable ? 'Edit Maths Progress' : 'Times Tables 🔢'}
+          {editable ? 'Edit Maths Progress' : 'Maths Progress 🔢'}
         </h1>
       </div>
 
@@ -46,10 +56,9 @@ export default function ProgressScreen({ userId, onBack, editable }) {
         <span className="bg-green-400 text-white px-3 py-1 rounded-full text-sm font-bold">Mastered: {mastered}</span>
       </div>
 
-      {editable && (
-        <p className="text-sm text-blue-600">Tap any table to cycle its status.</p>
-      )}
+      {editable && <p className="text-sm text-blue-600">Tap any tile to cycle its status.</p>}
 
+      {/* Times tables */}
       {phases.map(phase => {
         const topics = MATHS_TOPICS.filter(t => t.phase === phase)
         return (
@@ -66,9 +75,7 @@ export default function ProgressScreen({ userId, onBack, editable }) {
                     className={`min-h-14 w-full rounded-2xl px-4 py-2 flex justify-between items-center font-bold text-base transition-colors ${STATUS_COLOUR[status]} ${editable ? 'active:scale-95' : 'cursor-default'}`}
                   >
                     <span>{topic.label}</span>
-                    {status !== 'unseen' && (
-                      <span className="text-sm font-normal opacity-70">{correct} correct</span>
-                    )}
+                    {status !== 'unseen' && <span className="text-sm font-normal opacity-70">{correct} correct</span>}
                   </button>
                 )
               })}
@@ -76,6 +83,27 @@ export default function ProgressScreen({ userId, onBack, editable }) {
           </div>
         )
       })}
+
+      {/* Arithmetic bands */}
+      <div>
+        <h2 className="text-sm font-bold text-blue-600 uppercase tracking-wide mb-2">Addition &amp; Subtraction</h2>
+        <div className="flex flex-col gap-2">
+          {[...addBands, ...subBands].map(band => {
+            const status = progress.bandProgressMap[band.id]?.status ?? 'unseen'
+            const correct = progress.bandProgressMap[band.id]?.correctCount ?? 0
+            return (
+              <button
+                key={band.id}
+                onClick={() => cycleBandStatus(band.id)}
+                className={`min-h-14 w-full rounded-2xl px-4 py-2 flex justify-between items-center font-bold text-base transition-colors ${STATUS_COLOUR[status]} ${editable ? 'active:scale-95' : 'cursor-default'}`}
+              >
+                <span>{band.name}</span>
+                {status !== 'unseen' && <span className="text-sm font-normal opacity-70">{correct} correct</span>}
+              </button>
+            )
+          })}
+        </div>
+      </div>
     </div>
   )
 }
