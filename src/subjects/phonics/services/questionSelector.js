@@ -44,8 +44,8 @@ const CONFUSABLE_PAIRS = {
   'ee':       ['ai', 'ea'],
   'igh':      ['i', 'ie'],
   'oa':       ['ow', 'o'],
-  'oo_long':  ['oo_short', 'oa'],
-  'oo_short': ['oo_long', 'u'],
+  'oo_long':  ['oa'],
+  'oo_short': ['u'],
   'ar':       ['or', 'er'],
   'or':       ['ar', 'aw'],
   'er':       ['ar', 'ir'],
@@ -68,9 +68,10 @@ function pickDistractors(correct, progressMap, count = 2) {
   const correctKey = entryKey(correct)
   const confusableKeys = CONFUSABLE_PAIRS[correctKey] ?? []
 
-  // All introduced candidates (use reference equality so oo variants can distract each other)
+  // Exclude same grapheme string — the two 'oo' entries look identical on screen
   const introduced = phonics.filter(p =>
     p !== correct &&
+    p.grapheme !== correct.grapheme &&
     !isAmbiguous(p.grapheme, correct) &&
     ['introduced', 'practising', 'mastered'].includes(getStatus(progressMap, p.grapheme))
   )
@@ -85,6 +86,7 @@ function pickDistractors(correct, progressMap, count = 2) {
   if (selected.length < count) {
     const fallbacks = phase2.filter(
       p => p !== correct &&
+        p.grapheme !== correct.grapheme &&
         !isAmbiguous(p.grapheme, correct) &&
         !selected.includes(p)
     )
