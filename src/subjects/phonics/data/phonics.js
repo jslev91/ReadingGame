@@ -68,6 +68,29 @@ const phonics = [
   { grapheme: 'air', audioKey: 'air',     ttsText: 'fair',  phonemeDescription: 'air as in fair', exampleWords: ['fair', 'hair', 'pair'],   phase: 3, order: 25 },
   { grapheme: 'ure', audioKey: 'ure',     ttsText: 'pure',  phonemeDescription: 'ure as in pure', exampleWords: ['pure', 'sure', 'cure'],   phase: 3, order: 26 },
   { grapheme: 'er',  audioKey: 'er',      ttsText: 'her',   phonemeDescription: 'er as in her',   exampleWords: ['her', 'fern', 'term'],    phase: 3, order: 27 },
+
+  // ─── Phase 5 ───────────────────────────────────────────────────────────────
+  // Alternative spellings for known phonemes + split digraphs ("magic e")
+  // No .wav files yet — app falls back to TTS automatically.
+  // audioKey uses underscores for split digraphs (filesystem-safe): a_e, e_e, i_e, o_e, u_e
+  { grapheme: 'ay',  audioKey: 'ay',  ttsText: 'day',   phonemeDescription: 'ay as in day',    exampleWords: ['day', 'play', 'say'],    phase: 5, order: 1  },
+  { grapheme: 'ou',  audioKey: 'ou',  ttsText: 'out',   phonemeDescription: 'ou as in out',    exampleWords: ['out', 'cloud', 'found'], phase: 5, order: 2  },
+  { grapheme: 'ie',  audioKey: 'ie',  ttsText: 'tie',   phonemeDescription: 'ie as in tie',    exampleWords: ['tie', 'pie', 'cried'],   phase: 5, order: 3  },
+  { grapheme: 'ea',  audioKey: 'ea',  ttsText: 'eat',   phonemeDescription: 'ea as in eat',    exampleWords: ['eat', 'sea', 'meat'],    phase: 5, order: 4  },
+  { grapheme: 'oy',  audioKey: 'oy',  ttsText: 'boy',   phonemeDescription: 'oy as in boy',    exampleWords: ['boy', 'toy', 'joy'],     phase: 5, order: 5  },
+  { grapheme: 'ir',  audioKey: 'ir',  ttsText: 'bird',  phonemeDescription: 'ir as in bird',   exampleWords: ['bird', 'girl', 'first'], phase: 5, order: 6  },
+  { grapheme: 'ue',  audioKey: 'ue',  ttsText: 'blue',  phonemeDescription: 'ue as in blue',   exampleWords: ['blue', 'clue', 'true'],  phase: 5, order: 7  },
+  { grapheme: 'aw',  audioKey: 'aw',  ttsText: 'saw',   phonemeDescription: 'aw as in saw',    exampleWords: ['saw', 'claw', 'draw'],   phase: 5, order: 8  },
+  { grapheme: 'wh',  audioKey: 'wh',  ttsText: 'when',  phonemeDescription: 'wh as in when',   exampleWords: ['when', 'where', 'whip'], phase: 5, order: 9  },
+  { grapheme: 'ph',  audioKey: 'ph',  ttsText: 'phone', phonemeDescription: 'ph as in phone',  exampleWords: ['phone', 'photo'],        phase: 5, order: 10 },
+  { grapheme: 'ew',  audioKey: 'ew',  ttsText: 'new',   phonemeDescription: 'ew as in new',    exampleWords: ['new', 'flew', 'grew'],   phase: 5, order: 11 },
+  { grapheme: 'oe',  audioKey: 'oe',  ttsText: 'toe',   phonemeDescription: 'oe as in toe',    exampleWords: ['toe', 'foe', 'goes'],    phase: 5, order: 12 },
+  { grapheme: 'au',  audioKey: 'au',  ttsText: 'Paul',  phonemeDescription: 'au as in Paul',   exampleWords: ['Paul', 'because', 'author'], phase: 5, order: 13 },
+  { grapheme: 'a-e', audioKey: 'a_e', ttsText: 'cake',  phonemeDescription: 'a-e as in cake',  exampleWords: ['cake', 'name', 'face'],  phase: 5, order: 14 },
+  { grapheme: 'e-e', audioKey: 'e_e', ttsText: 'these', phonemeDescription: 'e-e as in these', exampleWords: ['these', 'theme'],        phase: 5, order: 15 },
+  { grapheme: 'i-e', audioKey: 'i_e', ttsText: 'time',  phonemeDescription: 'i-e as in time',  exampleWords: ['time', 'like', 'bike'],  phase: 5, order: 16 },
+  { grapheme: 'o-e', audioKey: 'o_e', ttsText: 'bone',  phonemeDescription: 'o-e as in bone',  exampleWords: ['bone', 'home', 'note'],  phase: 5, order: 17 },
+  { grapheme: 'u-e', audioKey: 'u_e', ttsText: 'tune',  phonemeDescription: 'u-e as in tune',  exampleWords: ['tune', 'cube', 'cute'],  phase: 5, order: 18 },
 ]
 
 export default phonics
