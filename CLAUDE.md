@@ -59,24 +59,26 @@ Non-speech audio feedback. Exports `playCorrectSound()` — plays a short ascend
 Wrapper around localStorage that always namespaces reads and writes by `userId` using the key pattern `jimmy:{userId}:{suffix}`. All persisted state must be keyed by `userId`.
 
 ### `src/subjects/phonics/services/questionSelector.js`
-Exports `selectNextQuestion(progressMap)`. Determines which grapheme to ask next using these rules (in priority order):
-1. Work through Phase 2 graphemes in Letters and Sounds order; don't start Phase 3 until 6 Phase 2 graphemes are `practising` or `mastered`
-2. A new grapheme is introduced only when **zero** `introduced` graphemes remain — every seen grapheme must have consolidated to `practising` or `mastered` first. This prevents the child from accumulating an overwhelming backlog of new sounds.
-3. After introducing a new grapheme, interleave it with review of `introduced` and `practising` graphemes
-4. `mastered` graphemes appear ~1 in 10 questions as maintenance review
-5. Distractors prefer phonetically confusable graphemes (`CONFUSABLE_PAIRS` map) when introduced; fall back to random introduced graphemes, then Phase 2 fills remaining slots
-6. Same-phoneme graphemes are never used as distractors for each other (`PHONEME_ALIASES`): c/k/ck share /k/, f/ff share /f/, l/ll share /l/, s/ss share /s/, z/zz share /z/
+Exports `selectNextQuestion(progressMap, pace)`. Phase gates: Phase 3 unlocks at 6 Phase 2 practising/mastered; **Phase 5 unlocks at 15 Phase 3 practising/mastered**. `pace` ('fast'/'slow'/'normal') adjusts how many correct answers are needed before a new grapheme can be introduced (fast=2, slow=4, normal=3).
 
-Returns `{ entry, distractors, isNew, optionCount }`. `optionCount` is 3 (introduced), 4 (practising), or 5 (mastered) — distractors array length is always `optionCount - 1`.
+Selection rules:
+1. Phase 2 → Phase 3 (6 Phase 2 practising) → Phase 5 (15 Phase 3 practising) in Letters and Sounds order
+2. No new grapheme introduced while any `introduced` graphemes haven't reached the pace-adjusted threshold
+3. `introduced` graphemes weighted 70% vs `practising` 30%
+4. `mastered` graphemes appear ~1 in 10 for maintenance
+5. Distractors use `CONFUSABLE_PAIRS` (phonetically similar graphemes); same grapheme string excluded (prevents both `oo` variants appearing together)
+6. `PHONEME_ALIASES` excludes same-phoneme distractors
 
-**Review weighting:** when both `introduced` and `practising` graphemes are available, `introduced` graphemes are selected 70% of the time (vs 30% for `practising`) so recently-seen sounds get more repetition before the child advances.
-
-Also exports `PHONEME_ALIASES` (used by SpellingQuestion to exclude phoneme aliases from distractors).
+Also exports `PHONEME_ALIASES` and `getQuestionWeights(progressMap)` (4 weight profiles based on mastered count — see GameScreen section).
 
 ## Data
 
 ### `src/subjects/phonics/data/phonics.js`
-Phase 2 (23 graphemes) and Phase 3 (27 graphemes) from Letters and Sounds. Each entry: `grapheme`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
+Phase 2 (23 graphemes), Phase 3 (27 graphemes), and Phase 5 (18 graphemes) from Letters and Sounds. Each entry: `grapheme`, `audioKey`, `ttsText`, `phonemeDescription`, `exampleWords`, `phase`, `order`.
+
+**Phase 5 note:** no `.wav` files exist yet — app falls back to TTS automatically. Drop `ay.wav`, `ou.wav`, `ie.wav`, `ea.wav`, `oy.wav`, `ir.wav`, `ue.wav`, `aw.wav`, `wh.wav`, `ph.wav`, `ew.wav`, `oe.wav`, `au.wav`, `a_e.wav`, `e_e.wav`, `i_e.wav`, `o_e.wav`, `u_e.wav` into `public/audio/` when recorded — picked up automatically.
+
+**Split digraph audioKeys** use underscores (filesystem-safe): `a-e` → `a_e`, `e-e` → `e_e`, etc. Always call `speak(entry.audioKey, entry.ttsText)`, never the grapheme string directly.
 
 Each entry has two audio-related fields:
 - `audioKey`: filename stem for `/public/audio/*.wav` (matches grapheme for most; `oo_long` and `oo_short` for the two `oo` entries)
@@ -350,13 +352,18 @@ No grapheme progress is recorded — like BlendingQuestion, this tests whole wor
 ### `src/subjects/phonics/screens/GameScreen.jsx`
 Main game loop. 10 questions per session (`SESSION_LENGTH = 10`). Tracks `sessionCorrect` and `sessionCoins` via refs (reset on mount). Calls `onSessionComplete({ correct, total, coinsEarned, stats, mood })` after the 10th question.
 
-Question type selection per question (weighted random, evaluated each time, ineligible types get weight 0 and others rescale):
-- `PhonemeQuestion`: always eligible — 30%
-- `InitialSoundQuestion`: eligible when 2+ graphemes introduced — 20%
-- `BlendingQuestion`: eligible when `selectBlendingWord` returns non-null — 15%
-- `SpellingQuestion`: eligible when `selectBlendingWord` returns non-null — 15%
-- `TrickyWordQuestion`: eligible when `selectNextTrickyWord` returns non-null — 10%
-- `ReadingQuestion`: eligible when `selectBlendingWord` returns non-null — 10%
+Uses `usePerformance(userId, 'phonics')` — calls `recordAnswer(correct)` on every answer; passes `introductionPace` to `selectNextQuestion`.
+
+Question type weights come from `getQuestionWeights(progressMap)` (dynamic based on mastered grapheme count) with eligibility gates applied on top:
+
+| Profile | Trigger | Phoneme | Initial | Blending | Spelling | Tricky | Reading |
+|---|---|---|---|---|---|---|---|
+| Beginner | < 3 mastered | 70% | 30% | 0 | 0 | 0 | 0 |
+| Developing | 3–9 mastered | 40% | 25% | 15% | 10% | 5% | 5% |
+| Intermediate | 10–19 mastered | 28% | 20% | 15% | 15% | 12% | 10% |
+| Advanced | 20+ mastered | 15% | 15% | 20% | 22% | 15% | 13% |
+
+Ineligible types get weight 0 and remaining weights rescale proportionally.
 
 `questionIndex` dep array pattern — see comment in code. `progressMap` intentionally absent; adding it would cause an infinite loop via `recordPresented`.
 
@@ -395,42 +402,61 @@ Bottom-sheet modal. Opened from HomeScreen via long-press ⚙️ (800ms). Button
 Phase ordering: Phase 1 (×2, ×5, ×10), Phase 2 (×3, ×4), Phase 3 (×6, ×7, ×8), Phase 4 (×9, ×11, ×12).
 
 ### `src/subjects/maths/hooks/useProgress.js`
-Exports `useMathsProgress(userId)`. Storage key: `mathsProgress`. Same `unseen → introduced → practising → mastered` model as phonics (thresholds: 3 correct → practising, 7 → mastered). Exposes: `progressMap`, `recordPresented(topicId)`, `recordCorrect(topicId)`, `recordWrong(topicId)`, `setTopicStatus(topicId, status)`.
+Exports `useMathsProgress(userId)`. Two storage keys: `mathsProgress` (topics, thresholds 3→practising/7→mastered) and `mathsBandProgress` (arithmetic bands, thresholds 5→practising/15→mastered).
+
+Also exports standalone `selectNextBand(bandProgressMap, pace)` — picks the next arithmetic band to practise using gating rules and introduced-first pacing.
+
+Topic functions: `progressMap`, `recordPresented`, `recordCorrect`, `recordWrong`, `setTopicStatus`.
+Band functions: `bandProgressMap`, `getBandProgress`, `recordBandPresented`, `recordBandCorrect`, `recordBandWrong`, `setBandStatus`.
+
+### `src/subjects/maths/data/curriculum.js`
+**`BANDS`** — 6 arithmetic difficulty bands. Each has `id`, `name`, `operation` (`'add'`|`'subtract'`), `maxA`, `maxB`, `maxAnswer`. Band gating: `add-1` always eligible; `add-2` when `add-1` is practising; `add-3` when `add-2`; `sub-1` when `add-1`; `sub-2` when `sub-1`; `sub-3` when `sub-2`.
+
+**`generateArithmeticFact(band)`** — returns `{ a, b, answer, operation }`. Add: `a` random 1–maxA, `b` random 1–min(maxB, maxAnswer-a). Subtract: `a` from (maxB+1)–maxA, `b` from 1–min(a-1, maxB) — ensures answer ≥ 1.
 
 ### `src/subjects/maths/services/questionSelector.js`
-**`selectNextTopic(progressMap)`** — returns the next times table topic using the same introduced-first, no-new-while-introduced pacing as phonics. Mastered maintenance at 1 in 10.
+**`selectNextTopic(progressMap, pace)`** — returns the next times table topic using introduced-first pacing. `pace` adjusts the introduction gate (fast=2 correct, slow=4, normal=3).
 
-**`generateQuestion(topic, status, kind, format)`** — returns a question object.
-- `kind: 'times_table'` → options are **products** (correct: `fact.answer`; distractors: products from adjacent factors in the same table)
-- `kind: 'division'` → options are **factors** (correct: `fact.a`; distractors: adjacent factors clamped to `minFactor`–`maxFactor`)
-- `optionCount` = 3 when introduced, 4 when practising/mastered
-- `format` (division only): `'division'` | `'missing-factor'` — chosen randomly in GameScreen
-
-Fact shape: `{ a, b, answer }` where `a × b = answer`. `b` is always the table being practised (`topic.b`). `a` is the randomly chosen factor.
+**`generateQuestion(topic, status, kind, format)`** — returns a question object with fact and options. `kind: 'times_table'` → product options; `kind: 'division'` → factor options; `optionCount` 3 or 4 by status.
 
 ### `src/subjects/maths/components/TimesTableQuestion.jsx`
-Props: `fact`, `options`, `onCorrect`, `onWrong`, `locked`.
-Displays `b × a = ?` or `a × b = ?` (randomly) in `text-5xl font-bold`. TTS on mount via `factToSpeech(fact)`: `"b times a, equals"`. Answer options are products; 4-option layout wraps 2+2. Exports `factToSpeech` for use in `DivisionQuestion`.
+Props: `fact`, `options`, `onCorrect`, `onWrong`, `locked`. No TTS. Displays `b × a = ?` or `a × b = ?` (randomly, 50/50). 4-option layout wraps 2+2.
 
 ### `src/subjects/maths/components/DivisionQuestion.jsx`
-Props: `fact`, `format`, `options`, `onCorrect`, `onWrong`, `locked`.
-- Format `'division'`: displays `answer ÷ b = ?`, TTS `"answer divided by b, equals"`
-- Format `'missing-factor'`: displays `b × ? = answer` (? in amber), TTS `"b times what, equals answer"`
-Both formats test the same value — `fact.a` (the factor). Options are factors, not products.
+Props: `fact`, `format`, `options`, `onCorrect`, `onWrong`, `locked`. No TTS. Format `'division'`: `answer ÷ b = ?`; format `'missing-factor'`: `b × ? = answer` (? in amber). Options are factors.
+
+### `src/subjects/maths/components/ArithmeticQuestion.jsx`
+Props: `band`, `fact`, `options`, `onCorrect`, `onWrong`, `locked`. TTS on mount: `"seven plus five, equals"` / `"twelve minus four, equals"` via `arithmeticToSpeech`. Uses `numberWord()` (covers 0–100). Distractors: ±1/±2 for lower bands, ±10 for higher bands. Exports `generateArithmeticOptions(fact, band, status)` for GameScreen use.
 
 ### `src/subjects/maths/screens/GameScreen.jsx`
-Mirrors phonics GameScreen. `usePet` + `useMathsProgress`. Jimmy reactions. Poop handling. 10-question sessions. `onSessionComplete({ correct, total, coinsEarned, stats, mood })`.
+Mirrors phonics GameScreen. `usePet` + `useMathsProgress` + `usePerformance('maths')`. Jimmy reactions. Poop handling. 10-question sessions.
 
-Question selection per question:
-- `selectNextTopic` chooses the topic
-- If topic status is `practising` or `mastered`: 60% `TimesTableQuestion`, 40% `DivisionQuestion`
-- If topic status is `introduced`: 100% `TimesTableQuestion` (division not eligible yet)
-- Division format chosen randomly 50/50 each time
+Question weights: 40% `TimesTableQuestion`, 25% `DivisionQuestion` (when eligible: topic practising/mastered), 35% `ArithmeticQuestion`. When division ineligible, rescales to ~53/47 TimesTable/Arithmetic.
 
-Progress recorded via `recordCorrect(topicId)` / `recordWrong(topicId)` regardless of question kind — multiplication and division practice both count towards the same topic.
+Progress: topic questions → `recordCorrect(topicId)`; arithmetic → `recordBandCorrect(bandId)`.
 
 ### `src/subjects/maths/screens/ProgressScreen.jsx`
-Times table list grouped by phase. Each topic shown as a full-width button colour-coded by status (grey/yellow/orange/green). Summary chip row (Learning / Practising / Mastered). Editable mode (parent area) taps cycle the status. Correct count shown alongside each practising/mastered topic.
+Times table list by phase + "Addition & Subtraction" section with all 6 bands. Each tile colour-coded by status. Editable mode cycles status for both topics and bands.
+
+### `src/core/hooks/usePerformance.js`
+Subject-agnostic rolling-window performance tracker. Stored under `jimmy:{userId}:{subject}:recentPerformance`.
+
+State: `{ window: boolean[], rate: null | 0–1 }`. Window capped at 20; `rate` is null until 5+ answers recorded.
+
+Exposes:
+- `recentRate` — null or float 0–1
+- `introductionPace` — `'fast'` (rate > 0.85) | `'slow'` (rate < 0.55) | `'normal'`
+- `recordAnswer(correct)` — appends to window, recalculates rate
+
+Called in both GameScreens (for `recordAnswer` + `introductionPace`) and in `HomeScreen` (to display `recentRate` in `ParentAreaScreen`).
+
+**Calibration effect:** `introductionPace` is passed to `selectNextQuestion` (phonics) and `selectNextTopic`/`selectNextBand` (maths). `fast` lowers the introduction gate threshold by 1 correct answer; `slow` raises it by 1. Effect is subtle — nudges pace without dramatically changing behaviour.
+
+### `src/core/screens/ParentAreaScreen.jsx`
+Now receives `recentRate` prop. Displays under the profile name: "Recent accuracy: 78%" colour-coded (green ≥ 75%, amber 55–74%, red < 55%), or "not enough data yet" if `recentRate` is null.
+
+### `src/core/screens/HomeScreen.jsx`
+Now accepts `subject` prop (default `'phonics'`). Calls `usePerformance(userId, subject)` to get `recentRate`, passes it to `ParentAreaScreen`.
 
 ## Navigation
 React state in `App.jsx` (`screen`: `"home"` | `"game"` | `"summary"` | `"shop"` | `"progress"` | `"editProgress"` | `"profiles"` | `"createProfile"`). No router library.
@@ -486,8 +512,10 @@ The maths app builds with `npm run build:maths` → `dist-maths/index.html`. To 
 The main phonics deployment uses the default `npm run build` → `dist/`.
 
 - **Session 11:** Flowers/rainbow/balloon habitat items (PNG background removal, `RainbowItem` at horizon, `BalloonItem` state-machine shuttle 90s cross + 45s wait, sky-before-ground render order); item placement collision avoidance (`pickX`); test-mode "Remove All Items" button in shop; profile subject routing — `src/App.jsx` shows all profiles and routes to phonics or maths screens based on `profile.subject`; `CreateProfileScreen` shows subject picker (📚/🔢) when no `defaultSubject` given; `useProfiles` supports null subject (returns all profiles); maths Vercel deployment documented
-- **Session 12:** Maths subject fully implemented — 11 times table topics (×2–×12, UK curriculum order), `TimesTableQuestion` (products as options, TTS, 3/4 options by mastery), `DivisionQuestion` (two formats: `answer ÷ b = ?` and `b × ? = answer`, factor-based options, 60/40 weighting with TimesTable once practising/mastered), `useMathsProgress` + `questionSelector` mirroring phonics pacing; phonics `ReadingQuestion` added (auto-play sequence then 🔊/↑ column layout, no grapheme progress recorded); phonics question weights updated to 30/20/15/15/10/10; `SessionSummaryScreen` made safe when `stats` absent (maths summary shows score without Jimmy habitat)
+- **Session 12:** Maths subject fully implemented — 11 times table topics (×2–×12, UK curriculum order), `TimesTableQuestion` (products as options, 3/4 options by mastery), `DivisionQuestion` (two formats: `answer ÷ b = ?` and `b × ? = answer`, factor-based options, 60/40 weighting with TimesTable once practising/mastered), `useMathsProgress` + `questionSelector` mirroring phonics pacing; phonics `ReadingQuestion` added (auto-play sequence then 🔊/↑ column layout, no grapheme progress recorded); phonics question weights updated to 30/20/15/15/10/10; `SessionSummaryScreen` made safe when `stats` absent
+- **Session 13:** Maths arithmetic bands (`add-1` to `add-3`, `sub-1` to `sub-3`), `ArithmeticQuestion` (TTS, ±1/±10 distractors, 35% of maths weight); maths ProgressScreen shows arithmetic section; `usePerformance` hook (rolling 20-answer window, `introductionPace` fast/slow/normal, stored per subject); calibration wired into both GameScreens (`recordAnswer` on every answer, `introductionPace` to selectors); `ParentAreaScreen` shows recent accuracy %; `HomeScreen` gets `subject` prop; dynamic phonics question weights (`getQuestionWeights` — 4 profiles based on mastered count, shifts from 70% phoneme for beginners to 15% for advanced); Phase 5 — 18 graphemes (ay/ou/ie/ea/oy/ir/ue/aw/wh/ph/ew/oe/au + 5 split digraphs a-e/e-e/i-e/o-e/u-e) unlocked when 15 Phase 3 practising/mastered; 75 Phase 5 words; Phase 5 confusable pairs added; `selectBlendingWord` updated for Phase 5 eligibility (all-phase grapheme tracking)
 
-## Notes for session 13
-- **Addition and subtraction** — next maths question type. Track progress by difficulty band (Band 1: sums to 10, Band 2: sums to 20, Band 3: two-digit without carrying, Band 4: two-digit with carrying). Generate facts programmatically; same mastery model per band.
-- **Difficulty calibration** — rolling 20-question window per subject per profile. If correct rate > 85%, accelerate new topic introduction. If < 55%, pause and consolidate. Show rolling rate in parent area.
+## Notes for session 14
+- **Streak tracking:** consecutive-correct counter during a session — 🔥 flame emoji + count in habitat. Reset on wrong. Streak of 5+ triggers Jimmy happy reaction.
+- **Sentence reading for phonics:** short 3–4 word sentences shown on screen, child taps each word in order, TTS speaks it on tap. New `sentences.js` with 30+ sentences gated by `minMastered`. 
+- **Phase 5 alternative graphemes:** `eigh`, `ey`, `aigh` for /eɪ/; `y` as /ɪ/ (gym) and /aɪ/ (fly) — Phase 5b batch once main Phase 5 consolidates.
