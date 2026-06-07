@@ -103,17 +103,32 @@ function getNextUnseen(progressMap, allowPhase3) {
   return sequence.find(p => getStatus(progressMap, p.grapheme) === 'unseen') ?? null
 }
 
-// A new grapheme is introduced only when:
-//   1. No 'introduced' graphemes remain (all have consolidated to practising/mastered)
-//   2. Fewer than 12 graphemes are currently 'practising' (cap active workload)
-function canIntroduceNew(progressMap) {
-  const introducedCount = phonics.filter(
-    p => getStatus(progressMap, p.grapheme) === 'introduced'
-  ).length
-  if (introducedCount > 0) return false
-  const practisingCount = phonics.filter(
-    p => getStatus(progressMap, p.grapheme) === 'practising'
-  ).length
+// Dynamic question weight profiles based on mastered grapheme count
+const WEIGHTS_BEGINNER     = { phoneme: 0.70, initial: 0.30, blending: 0,    spelling: 0,    tricky: 0,    reading: 0    }
+const WEIGHTS_DEVELOPING   = { phoneme: 0.40, initial: 0.25, blending: 0.15, spelling: 0.10, tricky: 0.05, reading: 0.05 }
+const WEIGHTS_INTERMEDIATE = { phoneme: 0.28, initial: 0.20, blending: 0.15, spelling: 0.15, tricky: 0.12, reading: 0.10 }
+const WEIGHTS_ADVANCED     = { phoneme: 0.15, initial: 0.15, blending: 0.20, spelling: 0.22, tricky: 0.15, reading: 0.13 }
+
+export function getQuestionWeights(progressMap) {
+  const masteredCount = Object.values(progressMap).filter(p => p.status === 'mastered').length
+  if (masteredCount >= 20) return WEIGHTS_ADVANCED
+  if (masteredCount >= 10) return WEIGHTS_INTERMEDIATE
+  if (masteredCount >= 3)  return WEIGHTS_DEVELOPING
+  return WEIGHTS_BEGINNER
+}
+
+// A new grapheme is introduced only when no 'introduced' graphemes remain.
+// pace adjusts how many correct answers are needed before the gate opens:
+//   fast: 2 correct (one below normal), slow: 4 correct (one above), normal: 3 (practising threshold)
+function canIntroduceNew(progressMap, pace = 'normal') {
+  const threshold = pace === 'fast' ? 2 : pace === 'slow' ? 4 : 3
+  const unready = phonics.filter(p => {
+    const s = getStatus(progressMap, p.grapheme)
+    if (s === 'unseen' || s === 'mastered') return false
+    return (progressMap[p.grapheme]?.correctCount ?? 0) < threshold
+  }).length
+  if (unready > 0) return false
+  const practisingCount = phonics.filter(p => getStatus(progressMap, p.grapheme) === 'practising').length
   return practisingCount < 12
 }
 
@@ -125,7 +140,7 @@ function getOptionCount(progressMap, entry) {
   return 3
 }
 
-export function selectNextQuestion(progressMap) {
+export function selectNextQuestion(progressMap, pace = 'normal') {
   const phase2PractisingOrMastered = countByStatus(progressMap, ['practising', 'mastered'], 2)
   const allowPhase3 = phase2PractisingOrMastered >= 6
 
@@ -144,7 +159,7 @@ export function selectNextQuestion(progressMap) {
   // Prefer reviewing existing graphemes unless conditions allow a new introduction.
   // Weight introduced graphemes 70% vs practising 30% so recently-seen sounds
   // get more repetition before the child moves on.
-  if (reviewCandidates.length > 0 && !canIntroduceNew(progressMap)) {
+  if (reviewCandidates.length > 0 && !canIntroduceNew(progressMap, pace)) {
     const introducedCandidates = reviewCandidates.filter(p => getStatus(progressMap, p.grapheme) === 'introduced')
     const practisingCandidates = reviewCandidates.filter(p => getStatus(progressMap, p.grapheme) === 'practising')
     let pool = reviewCandidates

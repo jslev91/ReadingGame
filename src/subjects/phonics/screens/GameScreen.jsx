@@ -3,7 +3,7 @@ import { usePet } from '../../../core/hooks/usePet'
 import { playCorrectSound } from '../../../core/services/sounds'
 import { usePerformance } from '../../../core/hooks/usePerformance'
 import { useProgress, selectNextTrickyWord } from '../hooks/useProgress'
-import { selectNextQuestion } from '../services/questionSelector'
+import { selectNextQuestion, getQuestionWeights } from '../services/questionSelector'
 import { selectBlendingWord } from '../data/words'
 import Jimmy from '../../../core/components/Jimmy'
 import PhonemeQuestion from '../components/PhonemeQuestion'
@@ -51,19 +51,19 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     const blending = selectBlendingWord(progress.progressMap)
     const introCount = Object.keys(progress.progressMap).length
 
-    // Weighted question type selection: 30% phoneme, 20% initial, 15% blending, 15% spelling, 10% tricky, 10% reading
-    // Types not yet eligible have weight 0; remaining weights are rescaled proportionally.
+    // Dynamic question weights based on mastery level — see getQuestionWeights in questionSelector.js
     const blendingEligible = blending !== null
     const initialEligible = introCount >= 2
     const tricky = selectNextTrickyWord(progress.trickyWordProgressMap)
     trickyQuestion.current = tricky
+    const baseWeights = getQuestionWeights(progress.progressMap)
     const typeWeights = {
-      phoneme:  0.30,
-      initial:  initialEligible  ? 0.20 : 0,
-      blending: blendingEligible ? 0.15 : 0,
-      spelling: blendingEligible ? 0.15 : 0,
-      tricky:   tricky           ? 0.10 : 0,
-      reading:  blendingEligible ? 0.10 : 0,
+      phoneme:  baseWeights.phoneme,
+      initial:  initialEligible  ? baseWeights.initial  : 0,
+      blending: blendingEligible ? baseWeights.blending : 0,
+      spelling: blendingEligible ? baseWeights.spelling : 0,
+      tricky:   tricky           ? baseWeights.tricky   : 0,
+      reading:  blendingEligible ? baseWeights.reading  : 0,
     }
     const totalWeight = Object.values(typeWeights).reduce((a, b) => a + b, 0)
     let r = Math.random() * totalWeight
