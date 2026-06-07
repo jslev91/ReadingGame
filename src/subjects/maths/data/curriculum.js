@@ -20,3 +20,36 @@ export const MATHS_TOPICS = [
 export function getTopic(id) {
   return MATHS_TOPICS.find(t => t.id === id) ?? null
 }
+
+// Arithmetic difficulty bands — facts are generated programmatically, not listed statically.
+// Gating: add-1 always eligible; each subsequent band requires the previous to be 'practising'.
+// sub-1 unlocks when add-1 is 'practising'.
+export const BANDS = [
+  { id: 'add-1', name: 'Adding to 10',          operation: 'add',      maxA: 5,   maxB: 5,   maxAnswer: 10  },
+  { id: 'add-2', name: 'Adding to 20',           operation: 'add',      maxA: 10,  maxB: 10,  maxAnswer: 20  },
+  { id: 'add-3', name: 'Adding to 100',          operation: 'add',      maxA: 50,  maxB: 50,  maxAnswer: 100 },
+  { id: 'sub-1', name: 'Subtracting within 10',  operation: 'subtract', maxA: 10,  maxB: 5,   maxAnswer: 10  },
+  { id: 'sub-2', name: 'Subtracting within 20',  operation: 'subtract', maxA: 20,  maxB: 10,  maxAnswer: 20  },
+  { id: 'sub-3', name: 'Subtracting within 100', operation: 'subtract', maxA: 100, maxB: 50,  maxAnswer: 100 },
+]
+
+export function getBand(id) {
+  return BANDS.find(b => b.id === id) ?? null
+}
+
+export function generateArithmeticFact(band) {
+  if (band.operation === 'add') {
+    const a = Math.floor(Math.random() * band.maxA) + 1
+    const maxBForA = Math.min(band.maxB, band.maxAnswer - a)
+    if (maxBForA < 1) return generateArithmeticFact(band) // retry if clamped out
+    const b = Math.floor(Math.random() * maxBForA) + 1
+    return { a, b, answer: a + b, operation: 'add' }
+  } else {
+    // a must be at least maxB+1 so there's room for b; also a !== b to avoid 0 result
+    const a = band.maxB + 1 + Math.floor(Math.random() * (band.maxA - band.maxB))
+    const maxBForA = Math.min(a - 1, band.maxB)
+    if (maxBForA < 1) return generateArithmeticFact(band)
+    const b = Math.floor(Math.random() * maxBForA) + 1
+    return { a, b, answer: a - b, operation: 'subtract' }
+  }
+}
