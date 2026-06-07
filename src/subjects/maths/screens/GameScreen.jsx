@@ -1,19 +1,22 @@
 import { useState, useEffect, useRef } from 'react'
 import { usePet } from '../../../core/hooks/usePet'
 import { playCorrectSound } from '../../../core/services/sounds'
-import { useMathsProgress } from '../hooks/useProgress'
+import { useMathsProgress, selectNextBand } from '../hooks/useProgress'
 import { selectNextTopic, generateQuestion } from '../services/questionSelector'
+import { generateArithmeticFact } from '../data/curriculum'
 import Jimmy from '../../../core/components/Jimmy'
 import TimesTableQuestion from '../components/TimesTableQuestion'
 import DivisionQuestion from '../components/DivisionQuestion'
+import ArithmeticQuestion, { generateArithmeticOptions } from '../components/ArithmeticQuestion'
 
 const SESSION_LENGTH = 10
 
-export default function GameScreen({ userId, onHome, onSessionComplete }) {
+export default function GameScreen({ userId, onHome, onSessionComplete, introductionPace = 'normal', onAnswer }) {
   const pet = usePet(userId)
   const progress = useMathsProgress(userId)
   const [question, setQuestion] = useState(null)
   const [currentTopic, setCurrentTopic] = useState(null)
+  const [currentBand, setCurrentBand] = useState(null)
   const [locked, setLocked] = useState(false)
   const [questionIndex, setQuestionIndex] = useState(0)
   const [poopToast, setPoopToast] = useState(null)
@@ -35,23 +38,41 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
 
   // questionIndex is the only dep — same reasoning as phonics GameScreen
   useEffect(() => {
-    const topic = selectNextTopic(progress.progressMap)
-    const status = progress.progressMap[topic.id]?.status ?? 'unseen'
-    progress.recordPresented(topic.id)
+    // Weighted question type: 40% TimesTable, 25% Division (if eligible), 35% Arithmetic
+    const topic = selectNextTopic(progress.progressMap, introductionPace)
+    const topicStatus = progress.progressMap[topic.id]?.status ?? 'unseen'
+    const divEligible = topicStatus === 'practising' || topicStatus === 'mastered'
 
-    // Division eligible only once topic is practising or mastered (60% times table / 40% division)
-    const divEligible = status === 'practising' || status === 'mastered'
-    const kind = divEligible && Math.random() < 0.4 ? 'division' : 'times_table'
-    const format = kind === 'division'
-      ? (Math.random() < 0.5 ? 'division' : 'missing-factor')
-      : null
+    const weights = { times: 0.40, division: divEligible ? 0.25 : 0, arithmetic: 0.35 }
+    const total = Object.values(weights).reduce((a, b) => a + b, 0)
+    let r = Math.random() * total
+    let kind = 'times'
+    for (const [k, w] of Object.entries(weights)) {
+      r -= w
+      if (r <= 0) { kind = k; break }
+    }
 
-    setCurrentTopic(topic)
-    setQuestion(generateQuestion(topic, status, kind, format))
+    if (kind === 'arithmetic') {
+      const band = selectNextBand(progress.bandProgressMap, introductionPace)
+      const fact = generateArithmeticFact(band)
+      const bandStatus = progress.bandProgressMap[band.id]?.status ?? 'unseen'
+      const { options } = generateArithmeticOptions(fact, band, bandStatus)
+      progress.recordBandPresented(band.id)
+      setCurrentBand(band)
+      setCurrentTopic(null)
+      setQuestion({ kind: 'arithmetic', fact, options })
+    } else {
+      progress.recordPresented(topic.id)
+      const format = kind === 'division' ? (Math.random() < 0.5 ? 'division' : 'missing-factor') : null
+      setCurrentTopic(topic)
+      setCurrentBand(null)
+      setQuestion(generateQuestion(topic, topicStatus, kind === 'division' ? 'division' : 'times_table', format))
+    }
     setLocked(false)
   }, [questionIndex])
 
   function advance(correct, coinsEarned = 1) {
+    onAnswer?.(correct)
     const nextIndex = questionIndex + 1
     if (correct) {
       sessionCorrect.current += 1
@@ -76,7 +97,11 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     playCorrectSound()
     const coinReward = pet.jimmySleeping ? 0 : 1
     pet.onCorrect(coinReward)
-    progress.recordCorrect(currentTopic.id)
+    if (currentBand) {
+      progress.recordBandCorrect(currentBand.id)
+    } else {
+      progress.recordCorrect(currentTopic.id)
+    }
     jimmyRef.current?.react('happy')
     advance(true, coinReward)
   }
@@ -85,7 +110,11 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
     if (locked) return
     setLocked(true)
     pet.onWrong()
-    progress.recordWrong(currentTopic.id)
+    if (currentBand) {
+      progress.recordBandWrong(currentBand.id)
+    } else {
+      progress.recordWrong(currentTopic.id)
+    }
     jimmyRef.current?.react('sad')
     advance(false)
   }
@@ -125,7 +154,17 @@ export default function GameScreen({ userId, onHome, onSessionComplete }) {
 
       {question && (
         <div className="bg-white rounded-3xl shadow-lg w-full max-w-sm">
-          {question.kind === 'division' ? (
+          {question.kind === 'arithmetic' ? (
+            <ArithmeticQuestion
+              key={questionIndex}
+              band={currentBand}
+              fact={question.fact}
+              options={question.options}
+              onCorrect={handleCorrect}
+              onWrong={handleWrong}
+              locked={locked}
+            />
+          ) : question.kind === 'division' ? (
             <DivisionQuestion
               key={questionIndex}
               fact={question.fact}
