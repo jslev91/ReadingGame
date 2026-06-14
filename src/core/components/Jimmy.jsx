@@ -215,7 +215,7 @@ function RainbowItem({ instance }) {
   return (
     <div
       className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
-      style={{ bottom: '48px', left: '50%', transform: 'translateX(-50%)', zIndex: 0, width: '85%' }}
+      style={{ top: '-80px', left: '50%', transform: 'translateX(-50%)', zIndex: 0, width: '85%' }}
       aria-hidden="true"
     >
       {def.sprite
