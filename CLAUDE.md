@@ -238,7 +238,9 @@ Transitions: `unseen → seen` on first presentation; `seen → familiar` at 3 c
 
 **Phase gating for tricky words:** Phase 3 words unlock when 3 Phase 2 words are `familiar`/`known`. Phase 4 words unlock when 3 Phase 3 words are `familiar`/`known`.
 
-**`selectNextTrickyWord(trickyProgressMap)`** — exported standalone function (not a hook method). Returns `{ targetWord, distractors: [word, word] }` or `null` if no eligible words. Prefers words not yet `familiar`; 70% chance of targeting the current unfamiliar word, 30% review of seen pool. Distractors come from seen words first, then upcoming unseen words.
+**`selectNextTrickyWord(trickyProgressMap)`** — exported standalone function (not a hook method). Returns `{ targetWord, distractors: [word, word] }` or `null` if no eligible words.
+
+Introduction gate: a new word is only introduced when (a) no word is currently at `seen` status (all active words have reached at least `familiar`) AND (b) fewer than 5 words are actively being practised (`seen` + `familiar`). While any word is still `seen`, selection focuses 70% on `seen` words, 30% on the full seen pool. Distractors come from seen words first, then upcoming unseen words.
 
 Exposes: `progressMap`, `getProgress(grapheme)`, `recordPresented(grapheme)`, `recordCorrect(grapheme)`, `recordWrong(grapheme)`, `setGraphemeStatus(grapheme, status)`, `trickyWordProgressMap`, `recordTrickyPresented(word)`, `recordTrickyCorrect(word)`, `recordTrickyWrong(word)`, `setTrickyWordStatus(word, status)`.
 

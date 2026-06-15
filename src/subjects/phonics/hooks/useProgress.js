@@ -57,8 +57,6 @@ export function selectNextTrickyWord(trickyProgressMap) {
 
   if (eligible.length === 0) return null
 
-  // Find the most recently introduced word that hasn't reached familiar yet —
-  // that is the "current" word. If it has reached familiar, introduce the next unseen one.
   const seenWords = eligible.filter(w => {
     const p = trickyProgressMap[w.word]
     return p && p.status !== 'unseen'
@@ -72,10 +70,15 @@ export function selectNextTrickyWord(trickyProgressMap) {
     return { targetWord: target, distractors: pool }
   }
 
-  // Check if the most recently introduced word has reached familiar — if so, introduce next
-  const lastIntroduced = seenWords[seenWords.length - 1]
-  const lastProgress = trickyProgressMap[lastIntroduced.word]
-  const readyForNew = lastProgress.status === 'familiar' || lastProgress.status === 'known'
+  // Words actively being practised: seen or familiar (not yet known)
+  const practising = seenWords.filter(w => {
+    const p = trickyProgressMap[w.word]
+    return p.status === 'seen' || p.status === 'familiar'
+  })
+
+  // Gate for introducing a new word: no word still at 'seen' AND under the 5-word cap
+  const anyStillSeen = practising.some(w => trickyProgressMap[w.word].status === 'seen')
+  const readyForNew = !anyStillSeen && practising.length < 5
 
   let target
   if (readyForNew) {
@@ -89,13 +92,10 @@ export function selectNextTrickyWord(trickyProgressMap) {
       return p.status !== 'known'
     }) ?? seenWords[Math.floor(Math.random() * seenWords.length)]
   } else {
-    // Weight toward the current word (not yet familiar) but occasionally review older ones
-    const notFamiliar = seenWords.filter(w => {
-      const p = trickyProgressMap[w.word]
-      return p.status !== 'familiar' && p.status !== 'known'
-    })
-    target = Math.random() < 0.7
-      ? notFamiliar[Math.floor(Math.random() * notFamiliar.length)]
+    // Focus on words still at 'seen'; occasionally review familiar ones too
+    const stillSeen = practising.filter(w => trickyProgressMap[w.word].status === 'seen')
+    target = Math.random() < 0.7 && stillSeen.length > 0
+      ? stillSeen[Math.floor(Math.random() * stillSeen.length)]
       : seenWords[Math.floor(Math.random() * seenWords.length)]
   }
 
