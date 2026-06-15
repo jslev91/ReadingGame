@@ -228,13 +228,13 @@ Per-user, per-grapheme progress stored under `jimmy:{userId}:graphemeProgress`. 
 ```js
 { status: "unseen"|"introduced"|"practising"|"mastered", correctCount: 0, lastSeen: null }
 ```
-Transitions: `unseen → introduced` on first presentation; `introduced → practising` at 3 correct; `practising → mastered` at 7 correct. Wrong answers don't regress status.
+Transitions: `unseen → introduced` on first presentation; `introduced → practising` at 3 correct; `practising → mastered` at 7 correct. Wrong answers decrement `correctCount` by 1 (floor 0) and re-derive status with hysteresis buffers: regress from `mastered` when count < 5 (3 wrongs from threshold), from `practising` when count < 1 (3 wrongs from threshold). `introduced` is the floor — never regresses to `unseen`.
 
 **Tricky word state shape (per word):**
 ```js
 { status: "unseen"|"seen"|"familiar"|"known", correctCount: 0, lastSeen: null }
 ```
-Transitions: `unseen → seen` on first presentation; `seen → familiar` at 3 correct; `familiar → known` at 7 correct.
+Transitions: `unseen → seen` on first presentation; `seen → familiar` at 3 correct; `familiar → known` at 7 correct. Same wrong-answer regression rules: regress from `known` when count < 5, from `familiar` when count < 1. `seen` is the floor.
 
 **Phase gating for tricky words:** Phase 3 words unlock when 3 Phase 2 words are `familiar`/`known`. Phase 4 words unlock when 3 Phase 3 words are `familiar`/`known`.
 

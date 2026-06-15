@@ -16,19 +16,21 @@ function defaultTrickyEntry() {
   return { status: 'unseen', correctCount: 0, lastSeen: null }
 }
 
-function nextStatus(current, correctCount) {
+function deriveStatus(current, correctCount) {
   if (current === 'unseen') return 'unseen'
-  if (current === 'mastered') return 'mastered'
   if (correctCount >= THRESHOLDS.mastered) return 'mastered'
   if (correctCount >= THRESHOLDS.practising) return 'practising'
+  if (current === 'mastered' && correctCount < 5) return 'practising'
+  if (current === 'practising' && correctCount < 1) return 'introduced'
   return current
 }
 
-function nextTrickyStatus(current, correctCount) {
+function deriveTrickyStatus(current, correctCount) {
   if (current === 'unseen') return 'unseen'
-  if (current === 'known') return 'known'
   if (correctCount >= TRICKY_THRESHOLDS.known) return 'known'
   if (correctCount >= TRICKY_THRESHOLDS.familiar) return 'familiar'
+  if (current === 'known' && correctCount < 5) return 'familiar'
+  if (current === 'familiar' && correctCount < 1) return 'seen'
   return current
 }
 
@@ -161,7 +163,7 @@ export function useProgress(userId) {
   const recordCorrect = useCallback((grapheme) => {
     const entry = getEntry(grapheme)
     const correctCount = entry.correctCount + 1
-    const status = nextStatus(entry.status, correctCount)
+    const status = deriveStatus(entry.status, correctCount)
     save({
       ...progressMap,
       [grapheme]: { ...entry, correctCount, status, lastSeen: new Date().toISOString() },
@@ -170,9 +172,11 @@ export function useProgress(userId) {
 
   const recordWrong = useCallback((grapheme) => {
     const entry = getEntry(grapheme)
+    const correctCount = Math.max(0, entry.correctCount - 1)
+    const status = deriveStatus(entry.status, correctCount)
     save({
       ...progressMap,
-      [grapheme]: { ...entry, lastSeen: new Date().toISOString() },
+      [grapheme]: { ...entry, correctCount, status, lastSeen: new Date().toISOString() },
     })
   }, [progressMap])
 
@@ -191,7 +195,7 @@ export function useProgress(userId) {
   const recordTrickyCorrect = useCallback((word) => {
     const entry = getTrickyEntry(word)
     const correctCount = entry.correctCount + 1
-    const status = nextTrickyStatus(entry.status === 'unseen' ? 'seen' : entry.status, correctCount)
+    const status = deriveTrickyStatus(entry.status === 'unseen' ? 'seen' : entry.status, correctCount)
     saveTricky({
       ...trickyWordProgressMap,
       [word]: { ...entry, correctCount, status, lastSeen: new Date().toISOString() },
@@ -200,9 +204,11 @@ export function useProgress(userId) {
 
   const recordTrickyWrong = useCallback((word) => {
     const entry = getTrickyEntry(word)
+    const correctCount = Math.max(0, entry.correctCount - 1)
+    const status = deriveTrickyStatus(entry.status === 'unseen' ? 'seen' : entry.status, correctCount)
     saveTricky({
       ...trickyWordProgressMap,
-      [word]: { ...entry, lastSeen: new Date().toISOString() },
+      [word]: { ...entry, correctCount, status, lastSeen: new Date().toISOString() },
     })
   }, [trickyWordProgressMap])
 
