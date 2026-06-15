@@ -215,11 +215,11 @@ function RainbowItem({ instance }) {
   return (
     <div
       className={`absolute select-none ${fading ? 'opacity-50' : ''}`}
-      style={{ top: '-80px', left: '50%', transform: 'translateX(-50%)', zIndex: 0, width: '85%' }}
+      style={{ top: '-50px', left: '50%', transform: 'translateX(-50%)', zIndex: 0, width: '85%' }}
       aria-hidden="true"
     >
       {def.sprite
-        ? <img src={def.sprite} alt="" style={{ width: '100%', height: 'auto' }} onError={e => { e.currentTarget.style.display = 'none' }} />
+        ? <img src={def.sprite} alt="" style={{ width: '80%', height: 'auto' }} onError={e => { e.currentTarget.style.display = 'none' }} />
         : <span className="text-3xl">{def.emoji}</span>}
     </div>
   )
